@@ -27,17 +27,7 @@ import {
     differenceInMonths
 } from 'date-fns';
 import AttendanceCalendar from './AttendanceCalendar';
-
-// 주요 ?�장 목록 (GPS 좌표)
-const WORK_SITES = [
-    { name: '�?��?��??�드', lat: 37.5397, lng: 126.6430, address: '?�천광역???�구 �?��?? },
-    { name: '?�성바이???�도공장', lat: 37.3850, lng: 126.6400, address: '?�천광역???�수�? },
-    { name: '�?��케미컬 ?�수공장', lat: 34.7604, lng: 127.6622, address: '?�라?�도 ?�수?? },
-    { name: '?��??�철 ?�진공장', lat: 36.8945, lng: 126.6444, address: '충청?�도 ?�진?? },
-    { name: '?�스�??�항?�철??, lat: 36.0190, lng: 129.3435, address: '경상북도 ?�항?? },
-    { name: 'SK?�이?�스 ?�천캠퍼??, lat: 37.2720, lng: 127.4350, address: '경기???�천?? },
-    { name: '?�성?�자 ?�택캠퍼??, lat: 36.9910, lng: 127.1120, address: '경기???�택?? },
-];
+import { WORK_SITES } from '../data/worksites';
 
 const SalaryCalculator = ({ user, onLogout }) => {
     const today = new Date();
@@ -318,7 +308,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                                     <span className="text-3xl font-bold text-safety-orange">
                                         {format(selectedMonth, 'yyyy')}??{format(selectedMonth, 'M')}??
                                     </span>
-                                    <ChevronDown className={`w-5 h-5 text-safety-orange transition-transform ${showMonthPicker ? 'rotate-180' : ''}`} />
+                                    <ChevronDown className={`w - 5 h - 5 text - safety - orange transition - transform ${ showMonthPicker? 'rotate-180': '' }`} />
                                 </div>
                             </button>
 
@@ -353,10 +343,11 @@ const SalaryCalculator = ({ user, onLogout }) => {
                                                         setSelectedMonth(newDate);
                                                         setShowMonthPicker(false);
                                                     }}
-                                                    className={`py-2 rounded-lg font-semibold transition-all ${selectedMonth.getMonth() === month - 1
-                                                        ? 'bg-safety-orange text-white'
-                                                        : 'bg-dark-bg text-gray-300 hover:bg-dark-border'
-                                                        }`}
+                                                    className={`py - 2 rounded - lg font - semibold transition - all ${
+            selectedMonth.getMonth() === month - 1
+                ? 'bg-safety-orange text-white'
+                : 'bg-dark-bg text-gray-300 hover:bg-dark-border'
+        }`}
                                                 >
                                                     {month}??
                                                 </button>
@@ -546,26 +537,27 @@ const SalaryCalculator = ({ user, onLogout }) => {
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => setDeductionType('tax')}
-                            className={`p-4 rounded-xl border-2 transition-all ${deductionType === 'tax'
-                                ? 'border-safety-orange bg-safety-orange/10'
-                                : 'border-dark-border bg-dark-bg hover:border-gray-600'
+                            className={`p - 4 rounded - xl border - 2 transition - all ${ deductionType === 'tax'
+            ? 'border-safety-orange bg-safety-orange/10'
+            : 'border-dark-border bg-dark-bg hover:border-gray-600'
                                 }`}
                         >
                             <div className="text-sm text-gray-400 mb-1">?�업?�득??/div>
-                            <div className={`text-xl font-bold ${deductionType === 'tax' ? 'text-safety-orange' : 'text-white'}`}>
+                            <div className={`text - xl font - bold ${ deductionType === 'tax' ? 'text-safety-orange' : 'text-white' } `}>
                                 3.3%
                             </div>
                         </button>
 
                         <button
                             onClick={() => setDeductionType('insurance')}
-                            className={`p-4 rounded-xl border-2 transition-all ${deductionType === 'insurance'
-                                ? 'border-safety-orange bg-safety-orange/10'
-                                : 'border-dark-border bg-dark-bg hover:border-gray-600'
-                                }`}
+                            className={`p - 4 rounded - xl border - 2 transition - all ${
+        deductionType === 'insurance'
+        ? 'border-safety-orange bg-safety-orange/10'
+        : 'border-dark-border bg-dark-bg hover:border-gray-600'
+    } `}
                         >
                             <div className="text-sm text-gray-400 mb-1">4?�보험</div>
-                            <div className={`text-xl font-bold ${deductionType === 'insurance' ? 'text-safety-orange' : 'text-white'}`}>
+                            <div className={`text - xl font - bold ${ deductionType === 'insurance' ? 'text-safety-orange' : 'text-white' } `}>
                                 9.4%
                             </div>
                         </button>
@@ -793,10 +785,11 @@ const SalaryCalculator = ({ user, onLogout }) => {
                             <button
                                 onClick={handleUseVacation}
                                 disabled={remainingVacationDays <= 0}
-                                className={`flex-1 py-3 rounded-xl font-semibold transition-all ${remainingVacationDays <= 0
-                                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-safety-orange to-orange-600 text-white hover:shadow-lg hover:shadow-safety-orange/30'
-                                    }`}
+                                className={`flex - 1 py - 3 rounded - xl font - semibold transition - all ${
+        remainingVacationDays <= 0
+        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+        : 'bg-gradient-to-r from-safety-orange to-orange-600 text-white hover:shadow-lg hover:shadow-safety-orange/30'
+    } `}
                             >
                                 ?�용 ?�정
                             </button>
