@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, User, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
-import { signIn } from '../lib/supabase';
-import { supabase } from '../lib/supabase';
+import { signIn, supabase, isSupabaseEnabled } from '../lib/supabase';
 
 const Login = ({ onSuccess, onSignUp }) => {
     const [username, setUsername] = useState('');
@@ -46,13 +45,19 @@ const Login = ({ onSuccess, onSignUp }) => {
             }
 
             // Supabase에서 사용자 정보 가져오기
-            const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('*')
-                .eq('auth_id', data.user.id)
-                .single();
+            let userData = null;
+            if (supabase) {
+                const { data: userDataResult, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('auth_id', data.user.id)
+                    .single();
+                if (!userError) {
+                    userData = userDataResult;
+                }
+            }
 
-            if (userError || !userData) {
+            if (!userData) {
                 // 사용자 정보가 없으면 기본 정보로 생성
                 const user = {
                     id: data.user.id,
