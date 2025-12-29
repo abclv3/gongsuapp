@@ -27,7 +27,7 @@ const Login = ({ onSuccess, onSignUp }) => {
             sessionStorage.setItem('current-user', JSON.stringify(user));
             onSuccess(user);
         } else {
-            setError('아이디 또는 비밀번호가 올바르지 않습니다');
+            setError('아이디 또는 비밀번호가 올바르지 않습니다. 다른 기기에서 가입하셨다면 이 기기에서 새로 가입해주세요.');
             triggerShake();
         }
     };
