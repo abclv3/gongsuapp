@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 
 // 출근 기록
 export const checkIn = async (userId, workSite, checkInTime) => {
+    if (!supabase) return { data: null, error: { message: 'Offline mode' } };
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     const { data, error } = await supabase
@@ -25,6 +26,7 @@ export const checkIn = async (userId, workSite, checkInTime) => {
 
 // 퇴근 기록
 export const checkOut = async (userId, checkOutTime) => {
+    if (!supabase) return { data: null, error: { message: 'Offline mode' } };
     const today = new Date().toISOString().split('T')[0];
 
     const { data, error } = await supabase
@@ -43,6 +45,7 @@ export const checkOut = async (userId, checkOutTime) => {
 
 // 월별 출퇴근 기록 조회
 export const getAttendanceRecords = async (userId, year, month) => {
+    if (!supabase) return { data: [], error: { message: 'Offline mode' } };
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
 
@@ -59,6 +62,7 @@ export const getAttendanceRecords = async (userId, year, month) => {
 
 // 공휴일 근무 기록
 export const recordHolidayWork = async (userId, workSite, date) => {
+    if (!supabase) return { data: null, error: { message: 'Offline mode' } };
     const { data, error } = await supabase
         .from('holiday_work_records')
         .insert([
@@ -76,6 +80,7 @@ export const recordHolidayWork = async (userId, workSite, date) => {
 
 // 월차 기록
 export const addVacationDay = async (userId, reason) => {
+    if (!supabase) return { data: null, error: { message: 'Offline mode' } };
     const { data, error } = await supabase
         .from('vacation_records')
         .insert([
@@ -92,6 +97,7 @@ export const addVacationDay = async (userId, reason) => {
 
 // 월차 사용 기록
 export const useVacationDay = async (userId, date) => {
+    if (!supabase) return { data: null, error: { message: 'Offline mode' } };
     const { data, error } = await supabase
         .from('vacation_usage')
         .insert([
