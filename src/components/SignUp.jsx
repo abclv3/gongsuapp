@@ -299,14 +299,14 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
                         {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
                     </div>
 
-                    {/* 입사년월 */}
+                    {/* 입사년월일 */}
                     <div>
                         <label className="block text-sm font-medium text-gray-400 mb-2">
                             <Calendar className="w-4 h-4 inline mr-1" />
-                            입사년월
+                            입사년월일
                         </label>
                         <input
-                            type="month"
+                            type="date"
                             value={formData.hireDate}
                             onChange={(e) => handleInputChange('hireDate', e.target.value)}
                             className={`w-full bg-dark-bg border-2 ${errors.hireDate ? 'border-red-500' : 'border-dark-border'} focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all`}
