@@ -55,6 +55,10 @@ const SalaryCalculator = ({ user, onLogout }) => {
     const [showWorksiteSuggestions, setShowWorksiteSuggestions] = useState(false);
     const [filteredWorksites, setFilteredWorksites] = useState([]);
 
+    // 출근 기록 관련 state
+    const [attendanceRecords, setAttendanceRecords] = useState({}); // { '2025-01': { '2025-01-15': true, ... } }
+    const [showAttendanceCalendar, setShowAttendanceCalendar] = useState(false);
+
     // 월차 데이터 로드 (localStorage)
     useEffect(() => {
         const savedVacationDays = localStorage.getItem('safety-pay-vacation-days');
