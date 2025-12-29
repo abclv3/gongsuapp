@@ -6,7 +6,6 @@ import {
     TrendingDown,
     AlertCircle,
     Award,
-    Wallet,
     Users,
     ChevronDown,
     X,
@@ -552,8 +551,8 @@ const SalaryCalculator = ({ user, onLogout }) => {
                             onClick={() => setDeductionType('insurance')}
                             className={`p - 4 rounded - xl border - 2 transition - all ${
         deductionType === 'insurance'
-        ? 'border-safety-orange bg-safety-orange/10'
-        : 'border-dark-border bg-dark-bg hover:border-gray-600'
+            ? 'border-safety-orange bg-safety-orange/10'
+            : 'border-dark-border bg-dark-bg hover:border-gray-600'
     } `}
                         >
                             <div className="text-sm text-gray-400 mb-1">4?�보험</div>
@@ -787,8 +786,8 @@ const SalaryCalculator = ({ user, onLogout }) => {
                                 disabled={remainingVacationDays <= 0}
                                 className={`flex - 1 py - 3 rounded - xl font - semibold transition - all ${
         remainingVacationDays <= 0
-        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-        : 'bg-gradient-to-r from-safety-orange to-orange-600 text-white hover:shadow-lg hover:shadow-safety-orange/30'
+            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+            : 'bg-gradient-to-r from-safety-orange to-orange-600 text-white hover:shadow-lg hover:shadow-safety-orange/30'
     } `}
                             >
                                 ?�용 ?�정
