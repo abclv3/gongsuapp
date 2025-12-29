@@ -1,0 +1,43 @@
+{
+    "name": "Safety-Pay 안전감시단 급여매니저",
+    "short_name": "Safety-Pay",
+    "description": "건설 현장 안전감시단을 위한 급여 및 공수 자동 계산 시스템",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#121212",
+    "theme_color": "#FF9800",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "productivity",
+        "finance",
+        "business"
+    ],
+    "shortcuts": [
+        {
+            "name": "급여 계산",
+            "short_name": "급여",
+            "description": "급여 계산 바로가기",
+            "url": "/",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
+}
