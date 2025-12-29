@@ -77,7 +77,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
 
     const handleUseVacation = () => {
         if (remainingVacationDays <= 0) {
-            alert('No available vacation days.');
+            alert('사용 가능한 월차가 없습니다.');
             return;
         }
         const newUsedVacation = { date: vacationDate, usedAt: new Date().toISOString() };
@@ -85,11 +85,11 @@ const SalaryCalculator = ({ user, onLogout }) => {
         setUsedVacations(updatedUsedVacations);
         localStorage.setItem('safety-pay-used-vacations', JSON.stringify(updatedUsedVacations));
         setShowVacationModal(false);
-        alert('Vacation day used successfully.');
+        alert('월차가 사용되었습니다.');
     };
 
     const handleDeleteVacation = (index) => {
-        if (confirm('Delete this vacation record?')) {
+        if (confirm('이 월차 기록을 삭제하시겠습니까?')) {
             const updatedUsedVacations = usedVacations.filter((_, i) => i !== index);
             setUsedVacations(updatedUsedVacations);
             localStorage.setItem('safety-pay-used-vacations', JSON.stringify(updatedUsedVacations));
@@ -103,7 +103,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
 
     const handleWorksiteChange = () => {
         if (!editedWorksite.trim()) {
-            alert('Please enter worksite name.');
+            alert('현장명을 입력해주세요.');
             return;
         }
         const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
@@ -112,7 +112,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
         const updatedUser = { ...user, workSite: editedWorksite.trim() };
         sessionStorage.setItem('current-user', JSON.stringify(updatedUser));
         setIsEditingWorksite(false);
-        alert('Worksite updated.');
+        alert('현장이 변경되었습니다.');
         window.location.reload();
     };
 
@@ -201,7 +201,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                 <div className="max-w-md mx-auto flex justify-between items-center">
                     <div>
                         <h1 className="text-xl font-bold">Safety-Pay</h1>
-                        <p className="text-sm opacity-90">{user?.name} / {user?.workSite}</p>
+                        <p className="text-sm opacity-90">{user?.name}님 / {user?.workSite}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <button
@@ -209,13 +209,13 @@ const SalaryCalculator = ({ user, onLogout }) => {
                             className="px-3 py-1 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-all"
                         >
                             <Calendar className="w-4 h-4 inline mr-1" />
-                            Attendance
+                            출퇴근
                         </button>
                         <button
                             onClick={onLogout}
                             className="px-3 py-1 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-all"
                         >
-                            Logout
+                            로그아웃
                         </button>
                     </div>
                 </div>
@@ -232,8 +232,8 @@ const SalaryCalculator = ({ user, onLogout }) => {
                             <ChevronDown className="w-5 h-5 rotate-90" />
                         </button>
                         <div className="text-center">
-                            <div className="text-lg font-bold">{format(selectedMonth, 'yyyy. MM')}</div>
-                            <div className="text-xs text-gray-400">Payment: {paymentDate}</div>
+                            <div className="text-lg font-bold">{format(selectedMonth, 'yyyy년 MM월')}</div>
+                            <div className="text-xs text-gray-400">지급일: {paymentDate}</div>
                         </div>
                         <button
                             onClick={() => setSelectedMonth(addMonths(selectedMonth, 1))}
@@ -248,7 +248,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                 <div className="bg-dark-card border border-dark-border rounded-2xl p-4">
                     <label className="block text-sm text-gray-400 mb-2">
                         <Briefcase className="w-4 h-4 inline mr-1" />
-                        Work Days
+                        내 공수 (일수)
                     </label>
                     <input
                         type="number"
@@ -261,7 +261,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                     {isPerfectAttendance && (
                         <div className="mt-2 flex items-center justify-center gap-2 text-green-400">
                             <Award className="w-4 h-4" />
-                            <span className="text-sm">Perfect Attendance! +1 Vacation Day</span>
+                            <span className="text-sm">만근 달성! 월차 +1일</span>
                         </div>
                     )}
                 </div>
@@ -270,7 +270,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                 <div className="bg-dark-card border border-dark-border rounded-2xl p-4">
                     <label className="block text-sm text-gray-400 mb-2">
                         <TrendingDown className="w-4 h-4 inline mr-1" />
-                        Deduction Type
+                        공제 유형
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                         <button
@@ -280,7 +280,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                                     : 'bg-dark-bg border border-dark-border text-gray-400 hover:border-safety-orange'
                                 }`}
                         >
-                            Tax (3.3%)
+                            세금 (3.3%)
                         </button>
                         <button
                             onClick={() => setDeductionType('insurance')}
@@ -289,7 +289,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                                     : 'bg-dark-bg border border-dark-border text-gray-400 hover:border-safety-orange'
                                 }`}
                         >
-                            Insurance (9.4%)
+                            4대보험 (9.4%)
                         </button>
                     </div>
                 </div>
@@ -299,48 +299,48 @@ const SalaryCalculator = ({ user, onLogout }) => {
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                             <Calendar className="w-5 h-5 text-green-400" />
-                            <span className="text-gray-400">Vacation Days</span>
+                            <span className="text-gray-400">월차</span>
                         </div>
-                        <div className="text-2xl font-bold text-green-400">{remainingVacationDays}</div>
+                        <div className="text-2xl font-bold text-green-400">{remainingVacationDays}일</div>
                     </div>
                     <div className="text-xs text-gray-500">
-                        Total: {vacationDays} / Used: {usedVacations.length}
+                        총: {vacationDays}일 / 사용: {usedVacations.length}일
                     </div>
                     <button
                         onClick={() => setShowVacationModal(true)}
                         className="w-full mt-3 py-2 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400 hover:bg-green-500/30 transition-all flex items-center justify-center gap-2"
                     >
                         <Plus className="w-4 h-4" />
-                        Use Vacation Day
+                        월차 사용
                     </button>
                 </div>
 
                 {/* Salary Breakdown */}
                 <div className="bg-dark-card border border-dark-border rounded-2xl p-4 space-y-3">
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Base Salary ({BASE_WORK_DAYS} days)</span>
-                        <span className="font-semibold">{formatCurrency(BASE_SALARY)} KRW</span>
+                        <span className="text-gray-400">기본급 ({BASE_WORK_DAYS}일)</span>
+                        <span className="font-semibold">{formatCurrency(BASE_SALARY)}원</span>
                     </div>
                     {daysDiff !== 0 && (
                         <div className="flex justify-between items-center">
                             <span className="text-gray-400">
-                                Adjustment ({daysDiff > 0 ? '+' : ''}{daysDiff} days)
+                                공수 조정 ({daysDiff > 0 ? '+' : ''}{daysDiff}일)
                             </span>
                             <span className={`font-semibold ${daysDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                {daysDiff > 0 ? '+' : ''}{formatCurrency(daysDiff * PER_DAY_AMOUNT)} KRW
+                                {daysDiff > 0 ? '+' : ''}{formatCurrency(daysDiff * PER_DAY_AMOUNT)}원
                             </span>
                         </div>
                     )}
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Gross Salary</span>
-                        <span className="font-bold text-lg text-white">{formatCurrency(adjustedSalary)} KRW</span>
+                        <span className="text-gray-400">총 급여</span>
+                        <span className="font-bold text-lg text-white">{formatCurrency(adjustedSalary)}원</span>
                     </div>
                     <div className="border-t border-dark-border my-2"></div>
                     <div className="flex justify-between items-center">
                         <span className="text-gray-400">
-                            Deduction ({(taxRate * 100).toFixed(1)}%)
+                            공제 ({(taxRate * 100).toFixed(1)}%)
                         </span>
-                        <span className="text-red-400">-{formatCurrency(deduction)} KRW</span>
+                        <span className="text-red-400">-{formatCurrency(deduction)}원</span>
                     </div>
                 </div>
 
@@ -348,21 +348,21 @@ const SalaryCalculator = ({ user, onLogout }) => {
                 <div className="bg-gradient-to-r from-safety-orange to-orange-600 rounded-2xl p-6 text-center shadow-lg">
                     <div className="flex items-center justify-center gap-2 mb-2">
                         <Wallet className="w-6 h-6" />
-                        <span className="text-lg">Net Salary</span>
+                        <span className="text-lg">실수령액</span>
                     </div>
-                    <div className="text-4xl font-bold">{formatCurrency(netSalary)} KRW</div>
+                    <div className="text-4xl font-bold">{formatCurrency(netSalary)}원</div>
                 </div>
 
                 {/* Employee Info */}
                 <div className="bg-dark-card border border-dark-border rounded-2xl p-4 space-y-3">
                     <h3 className="font-semibold text-gray-300 flex items-center gap-2">
                         <Users className="w-5 h-5" />
-                        Employee Info
+                        근무 정보
                     </h3>
 
                     {/* Hire Date */}
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Hire Date</span>
+                        <span className="text-gray-400">입사일</span>
                         <input
                             type="date"
                             value={hireDate}
@@ -374,16 +374,16 @@ const SalaryCalculator = ({ user, onLogout }) => {
                     {/* Tenure */}
                     {tenure && (
                         <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Tenure</span>
+                            <span className="text-gray-400">근속 기간</span>
                             <span className="text-safety-orange font-semibold">
-                                {tenure.years}Y {tenure.months}M
+                                {tenure.years}년 {tenure.months}개월
                             </span>
                         </div>
                     )}
 
                     {/* Worksite */}
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Worksite</span>
+                        <span className="text-gray-400">근무 현장</span>
                         {isEditingWorksite ? (
                             <div className="flex items-center gap-2">
                                 <input
@@ -391,7 +391,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                                     value={editedWorksite}
                                     onChange={(e) => handleWorksiteSearch(e.target.value)}
                                     className="bg-dark-bg border border-dark-border rounded-lg px-3 py-1 text-sm text-white focus:border-safety-orange outline-none w-40"
-                                    placeholder="Enter worksite"
+                                    placeholder="현장명 입력"
                                 />
                                 <button onClick={handleWorksiteChange} className="text-green-400 hover:text-green-300">
                                     <Check className="w-4 h-4" />
@@ -402,7 +402,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                             </div>
                         ) : (
                             <div className="flex items-center gap-2">
-                                <span className="text-safety-orange font-semibold">{user?.workSite || 'Not set'}</span>
+                                <span className="text-safety-orange font-semibold">{user?.workSite || '미설정'}</span>
                                 <button onClick={() => setIsEditingWorksite(true)} className="text-gray-400 hover:text-white">
                                     <Edit2 className="w-4 h-4" />
                                 </button>
@@ -433,13 +433,13 @@ const SalaryCalculator = ({ user, onLogout }) => {
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                     <div className="bg-dark-card border border-dark-border rounded-2xl p-6 max-w-sm w-full">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold">Use Vacation Day</h2>
+                            <h2 className="text-lg font-bold">월차 사용</h2>
                             <button onClick={() => setShowVacationModal(false)} className="text-gray-400 hover:text-white">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                         <div className="mb-4">
-                            <label className="block text-sm text-gray-400 mb-2">Date</label>
+                            <label className="block text-sm text-gray-400 mb-2">사용일</label>
                             <input
                                 type="date"
                                 value={vacationDate}
@@ -448,14 +448,14 @@ const SalaryCalculator = ({ user, onLogout }) => {
                             />
                         </div>
                         <div className="text-sm text-gray-400 mb-4">
-                            Remaining: <span className="text-green-400 font-semibold">{remainingVacationDays}</span> days
+                            잔여 월차: <span className="text-green-400 font-semibold">{remainingVacationDays}일</span>
                         </div>
                         <button
                             onClick={handleUseVacation}
                             disabled={remainingVacationDays <= 0}
                             className="w-full py-3 bg-safety-orange text-white font-semibold rounded-xl hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Confirm
+                            확인
                         </button>
                     </div>
                 </div>
