@@ -31,7 +31,8 @@ import { WORK_SITES } from '../data/worksites';
 const SalaryCalculator = ({ user, onLogout }) => {
     const today = new Date();
     const [selectedMonth, setSelectedMonth] = useState(startOfMonth(today));
-    const [myWorkDays, setMyWorkDays] = useState('26');
+    const [myWorkDays, setMyWorkDays] = useState('0');
+    const [holidayWorkCount, setHolidayWorkCount] = useState(0);
     const [deductionType, setDeductionType] = useState('tax');
     const [showMonthPicker, setShowMonthPicker] = useState(false);
     const [vacationDays, setVacationDays] = useState(0);
@@ -181,6 +182,12 @@ const SalaryCalculator = ({ user, onLogout }) => {
         localStorage.setItem('safety-pay-time-records', JSON.stringify(newRecords));
     };
 
+    // 공수 자동 업데이트 핸들러
+    const handleUpdateWorkDays = (totalDays, holidayDays) => {
+        setMyWorkDays(totalDays.toString());
+        setHolidayWorkCount(holidayDays);
+    };
+
     const paymentDate = format(addMonths(startOfMonth(selectedMonth), 1).setDate(10), 'M/d');
     const workDays = parseInt(myWorkDays) || 0;
     const daysDiff = workDays - BASE_WORK_DAYS;
@@ -250,14 +257,11 @@ const SalaryCalculator = ({ user, onLogout }) => {
                         <Briefcase className="w-4 h-4 inline mr-1" />
                         내 공수 (일수)
                     </label>
-                    <input
-                        type="number"
-                        value={myWorkDays}
-                        onChange={(e) => setMyWorkDays(e.target.value)}
-                        className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-2xl font-bold text-center text-safety-orange focus:border-safety-orange outline-none transition-all"
-                        min="0"
-                        max="31"
-                    />
+                    <div className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-center">
+                        <span className="text-4xl font-bold text-safety-orange">{myWorkDays}</span>
+                        <span className="text-lg text-gray-400 ml-2">공수</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2 text-center">출퇴근 기록 기반 자동 계산</p>
                     {isPerfectAttendance && (
                         <div className="mt-2 flex items-center justify-center gap-2 text-green-400">
                             <Award className="w-4 h-4" />
@@ -276,8 +280,8 @@ const SalaryCalculator = ({ user, onLogout }) => {
                         <button
                             onClick={() => setDeductionType('tax')}
                             className={`py-3 rounded-xl font-semibold transition-all ${deductionType === 'tax'
-                                    ? 'bg-safety-orange text-white'
-                                    : 'bg-dark-bg border border-dark-border text-gray-400 hover:border-safety-orange'
+                                ? 'bg-safety-orange text-white'
+                                : 'bg-dark-bg border border-dark-border text-gray-400 hover:border-safety-orange'
                                 }`}
                         >
                             세금 (3.3%)
@@ -285,8 +289,8 @@ const SalaryCalculator = ({ user, onLogout }) => {
                         <button
                             onClick={() => setDeductionType('insurance')}
                             className={`py-3 rounded-xl font-semibold transition-all ${deductionType === 'insurance'
-                                    ? 'bg-safety-orange text-white'
-                                    : 'bg-dark-bg border border-dark-border text-gray-400 hover:border-safety-orange'
+                                ? 'bg-safety-orange text-white'
+                                : 'bg-dark-bg border border-dark-border text-gray-400 hover:border-safety-orange'
                                 }`}
                         >
                             4대보험 (9.4%)
@@ -473,6 +477,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                     onCheckIn={handleCheckIn}
                     onCheckOut={handleCheckOut}
                     onClose={() => setShowAttendanceCalendar(false)}
+                    onUpdateWorkDays={handleUpdateWorkDays}
                     user={user}
                 />
             )}
