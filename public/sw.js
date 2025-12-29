@@ -1,5 +1,5 @@
-// Safety-Pay Service Worker
-const CACHE_NAME = 'safety-pay-v1';
+// Safety-Pay Service Worker v2
+const CACHE_NAME = 'safety-pay-v2';
 const urlsToCache = [
     '/',
     '/index.html',
@@ -8,8 +8,9 @@ const urlsToCache = [
     '/icon-512.png'
 ];
 
-// 설치 이벤트
+// 설치 이벤트 - 즉시 활성화
 self.addEventListener('install', (event) => {
+    self.skipWaiting(); // 즉시 활성화
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
@@ -19,28 +20,54 @@ self.addEventListener('install', (event) => {
     );
 });
 
-// 활성화 이벤트
+// 활성화 이벤트 - 이전 캐시 삭제
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
+                        console.log('Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
             );
+        }).then(() => {
+            // 모든 클라이언트 즉시 제어
+            return self.clients.claim();
         })
     );
 });
 
-// Fetch 이벤트
+// Fetch 이벤트 - Network First 전략 (항상 최신 버전 우선)
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                // 캐시에 있으면 반환, 없으면 네트워크 요청
-                return response || fetch(event.request);
-            })
-    );
+    // HTML, JS, CSS 파일은 항상 네트워크 우선
+    if (event.request.url.includes('.html') ||
+        event.request.url.includes('.js') ||
+        event.request.url.includes('.css') ||
+        event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    // 네트워크 응답을 캐시에 저장
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseClone);
+                    });
+                    return response;
+                })
+                .catch(() => {
+                    // 네트워크 실패 시 캐시에서 반환
+                    return caches.match(event.request);
+                })
+        );
+    } else {
+        // 다른 리소스는 캐시 우선
+        event.respondWith(
+            caches.match(event.request)
+                .then((response) => {
+                    return response || fetch(event.request);
+                })
+        );
+    }
 });
