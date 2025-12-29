@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Lock, User, Eye, EyeOff, LogIn } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
+import { signIn } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const Login = ({ onSuccess, onSignUp }) => {
     const [username, setUsername] = useState('');
@@ -7,8 +9,9 @@ const Login = ({ onSuccess, onSignUp }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [shake, setShake] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
 
@@ -18,17 +21,80 @@ const Login = ({ onSuccess, onSignUp }) => {
             return;
         }
 
-        // 사용자 확인
-        const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
-        const user = users.find(u => u.username === username && u.password === password);
+        setLoading(true);
 
-        if (user) {
-            sessionStorage.setItem('authenticated', 'true');
-            sessionStorage.setItem('current-user', JSON.stringify(user));
-            onSuccess(user);
-        } else {
-            setError('아이디 또는 비밀번호가 올바르지 않습니다. 다른 기기에서 가입하셨다면 이 기기에서 새로 가입해주세요.');
-            triggerShake();
+        try {
+            // Supabase 인증 시도
+            const { data, error: authError } = await signIn(username, password);
+
+            if (authError) {
+                // Supabase 인증 실패 시 localStorage fallback
+                console.log('Supabase 인증 실패, localStorage 시도');
+                const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
+                const localUser = users.find(u => u.username === username && u.password === password);
+
+                if (localUser) {
+                    sessionStorage.setItem('authenticated', 'true');
+                    sessionStorage.setItem('current-user', JSON.stringify(localUser));
+                    onSuccess(localUser);
+                    return;
+                }
+
+                setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+                triggerShake();
+                return;
+            }
+
+            // Supabase에서 사용자 정보 가져오기
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('auth_id', data.user.id)
+                .single();
+
+            if (userError || !userData) {
+                // 사용자 정보가 없으면 기본 정보로 생성
+                const user = {
+                    id: data.user.id,
+                    username: username,
+                    name: username,
+                    workSite: '현장 미설정',
+                    email: data.user.email,
+                };
+                sessionStorage.setItem('authenticated', 'true');
+                sessionStorage.setItem('current-user', JSON.stringify(user));
+                onSuccess(user);
+            } else {
+                // 사용자 정보가 있으면 사용
+                const user = {
+                    id: userData.id,
+                    username: userData.username,
+                    name: userData.name,
+                    workSite: userData.work_site,
+                    phone: userData.phone,
+                    hireDate: userData.hire_date,
+                    authId: userData.auth_id,
+                };
+                sessionStorage.setItem('authenticated', 'true');
+                sessionStorage.setItem('current-user', JSON.stringify(user));
+                onSuccess(user);
+            }
+        } catch (err) {
+            console.error('로그인 에러:', err);
+            // 네트워크 오류 시 localStorage fallback
+            const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
+            const localUser = users.find(u => u.username === username && u.password === password);
+
+            if (localUser) {
+                sessionStorage.setItem('authenticated', 'true');
+                sessionStorage.setItem('current-user', JSON.stringify(localUser));
+                onSuccess(localUser);
+            } else {
+                setError('서버 연결 실패. 네트워크를 확인해주세요.');
+                triggerShake();
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -73,6 +139,7 @@ const Login = ({ onSuccess, onSignUp }) => {
                             className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all"
                             placeholder="아이디를 입력하세요"
                             autoFocus
+                            disabled={loading}
                         />
                     </div>
 
@@ -92,6 +159,7 @@ const Login = ({ onSuccess, onSignUp }) => {
                                 }}
                                 className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all pr-12"
                                 placeholder="비밀번호를 입력하세요"
+                                disabled={loading}
                             />
                             <button
                                 type="button"
@@ -106,17 +174,28 @@ const Login = ({ onSuccess, onSignUp }) => {
                     {/* 로그인 버튼 */}
                     <button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-safety-orange to-orange-600 text-white font-bold py-4 rounded-xl hover:shadow-lg hover:shadow-safety-orange/30 transition-all mb-3 flex items-center justify-center gap-2"
+                        disabled={loading}
+                        className="w-full bg-gradient-to-r from-safety-orange to-orange-600 text-white font-bold py-4 rounded-xl hover:shadow-lg hover:shadow-safety-orange/30 transition-all mb-3 flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                        <LogIn className="w-5 h-5" />
-                        로그인
+                        {loading ? (
+                            <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                로그인 중...
+                            </>
+                        ) : (
+                            <>
+                                <LogIn className="w-5 h-5" />
+                                로그인
+                            </>
+                        )}
                     </button>
 
                     {/* 회원가입 버튼 */}
                     <button
                         type="button"
                         onClick={onSignUp}
-                        className="w-full bg-dark-bg border border-dark-border text-gray-400 font-semibold py-3 rounded-xl hover:bg-dark-border transition-all"
+                        disabled={loading}
+                        className="w-full bg-dark-bg border border-dark-border text-gray-400 font-semibold py-3 rounded-xl hover:bg-dark-border transition-all disabled:opacity-50"
                     >
                         계정이 없으신가요? 회원가입
                     </button>
@@ -126,6 +205,9 @@ const Login = ({ onSuccess, onSignUp }) => {
                 <div className="mt-6 text-center">
                     <p className="text-xs text-gray-500">
                         건설 현장 안전관리 전용 시스템
+                    </p>
+                    <p className="text-xs text-green-500 mt-1">
+                        ✓ 클라우드 동기화 지원
                     </p>
                 </div>
             </div>

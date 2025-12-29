@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, MapPin, Phone, Calendar, User, Lock, Eye, EyeOff, Loader, Search } from 'lucide-react';
+import { UserPlus, MapPin, Phone, Calendar, User, Lock, Eye, EyeOff, Loader, Search, Loader2 } from 'lucide-react';
+import { signUp } from '../lib/supabase';
 
 // 주요 현장 목록 (GPS 좌표)
 const WORK_SITES = [
@@ -143,32 +144,73 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSignUp = () => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSignUp = async () => {
         if (!validateForm()) return;
 
-        // 기존 사용자 확인
-        const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
-
-        if (users.find(u => u.username === formData.username)) {
-            setErrors({ username: '이미 존재하는 아이디입니다' });
-            return;
-        }
-
-        // 새 사용자 추가 (커스텀 현장명 포함)
+        setIsSubmitting(true);
         const finalWorkSite = isCustomSite ? customSiteName.trim() : formData.workSite;
 
-        const newUser = {
-            ...formData,
-            workSite: finalWorkSite,
-            createdAt: new Date().toISOString(),
-            id: Date.now().toString(),
-        };
+        try {
+            // Supabase 회원가입 시도
+            const { data, error } = await signUp(formData.username, formData.password, {
+                name: formData.name,
+                phone: formData.phone,
+                hireDate: formData.hireDate,
+                workSite: finalWorkSite,
+            });
 
-        users.push(newUser);
-        localStorage.setItem('safety-pay-users', JSON.stringify(users));
+            if (error) {
+                // Supabase 실패 시 localStorage fallback
+                console.log('Supabase 회원가입 실패:', error.message);
 
-        alert(`${formData.name}님, 회원가입이 완료되었습니다!\n현장: ${finalWorkSite}`);
-        onSuccess(newUser);
+                // 기존 사용자 확인
+                const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
+                if (users.find(u => u.username === formData.username)) {
+                    setErrors({ username: '이미 존재하는 아이디입니다' });
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                // localStorage에 저장
+                const newUser = {
+                    ...formData,
+                    workSite: finalWorkSite,
+                    createdAt: new Date().toISOString(),
+                    id: Date.now().toString(),
+                };
+                users.push(newUser);
+                localStorage.setItem('safety-pay-users', JSON.stringify(users));
+
+                alert(`${formData.name}님, 회원가입이 완료되었습니다!\n현장: ${finalWorkSite}\n(오프라인 모드)`);
+                onSuccess(newUser);
+                return;
+            }
+
+            // Supabase 성공
+            const newUser = {
+                id: data[0]?.id || Date.now().toString(),
+                username: formData.username,
+                name: formData.name,
+                phone: formData.phone,
+                hireDate: formData.hireDate,
+                workSite: finalWorkSite,
+            };
+
+            // localStorage에도 백업
+            const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
+            users.push({ ...newUser, password: formData.password });
+            localStorage.setItem('safety-pay-users', JSON.stringify(users));
+
+            alert(`${formData.name}님, 회원가입이 완료되었습니다!\n현장: ${finalWorkSite}\n✓ 클라우드 동기화 완료`);
+            onSuccess(newUser);
+        } catch (err) {
+            console.error('회원가입 에러:', err);
+            setErrors({ username: '서버 연결 실패. 다시 시도해주세요.' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
