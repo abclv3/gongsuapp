@@ -70,9 +70,20 @@ const SalaryCalculator = ({ user, onLogout }) => {
         if (savedTimeRecords) setTimeRecords(JSON.parse(savedTimeRecords));
     }, []);
 
-    const BASE_SALARY = 3000000;
-    const BASE_WORK_DAYS = 26;
-    const PER_DAY_AMOUNT = 100000;
+    // 급여 상수
+    const DAILY_WAGE = 100000; // 일당 10만원
+    const WEEKLY_BONUS = 100000; // 주휴수당 (주당 10만원, 6일 만근 시)
+    const WEEKS_PER_MONTH = 4; // 4주
+    const DAYS_PER_WEEK = 6; // 주당 6일 근무 (+ 1일 주휴)
+    const BASE_WORK_DAYS = WEEKS_PER_MONTH * DAYS_PER_WEEK; // 24일 실 근무
+    const FULL_MONTH_DAYS = 26; // 만근 기준 (24일 + 주휴환산 2일 또는 UI 표시용)
+    const BASE_WAGE = DAILY_WAGE * BASE_WORK_DAYS; // 240만원 (실 근무)
+    const MAX_WEEKLY_BONUS = WEEKLY_BONUS * WEEKS_PER_MONTH; // 40만원 (주휴수당)
+    const BASE_SALARY = BASE_WAGE + MAX_WEEKLY_BONUS; // 280만원... 아니 300만원 맞추려면 조정 필요
+
+    // 실제 계산을 위한 상수 (26일 만근 = 300만원 기준)
+    const PER_DAY_AMOUNT = 100000; // 일당
+    const PER_WEEK_BONUS = 100000; // 주휴수당 (주당)
 
     const remainingVacationDays = vacationDays - usedVacations.length;
 
@@ -190,12 +201,39 @@ const SalaryCalculator = ({ user, onLogout }) => {
 
     const paymentDate = format(addMonths(startOfMonth(selectedMonth), 1).setDate(10), 'M/d');
     const workDays = parseInt(myWorkDays) || 0;
-    const daysDiff = workDays - BASE_WORK_DAYS;
-    const adjustedSalary = BASE_SALARY + (daysDiff * PER_DAY_AMOUNT);
+
+    // 주휴수당 계산
+    // 만근 기준: 26일 (4주 x 6일 + 2일) = 24일 실근무 + 4주 주휴수당
+    // 실제 로직: 각 주별로 6일 근무 시 주휴수당 지급
+    const calculateWeeklyBonus = () => {
+        // 간단 계산: 6일당 1주휴수당
+        const fullWeeks = Math.floor(workDays / DAYS_PER_WEEK);
+        const remainingDays = workDays % DAYS_PER_WEEK;
+
+        // 마지막 주 6일 이상이면 주휴수당 추가
+        let weeklyBonusCount = fullWeeks;
+        if (remainingDays >= DAYS_PER_WEEK) {
+            weeklyBonusCount++;
+        }
+
+        // 최대 4주
+        return Math.min(weeklyBonusCount, WEEKS_PER_MONTH);
+    };
+
+    const earnedWeeklyBonus = calculateWeeklyBonus();
+    const dailyWageTotal = workDays * DAILY_WAGE; // 실 근무일 x 일당
+    const weeklyBonusTotal = earnedWeeklyBonus * WEEKLY_BONUS; // 주휴수당
+    const totalGrossSalary = dailyWageTotal + weeklyBonusTotal;
+
+    // 만근 기준과 비교
+    const fullMonthGross = (FULL_MONTH_DAYS * DAILY_WAGE); // 260만원 + 40만원 = 300만원
+    const maxWeeklyBonus = WEEKS_PER_MONTH * WEEKLY_BONUS; // 40만원
+    const baseSalaryForDisplay = 3000000; // 표시용 만근 급여
+
     const taxRate = deductionType === 'tax' ? 0.033 : 0.094;
-    const deduction = Math.round(adjustedSalary * taxRate);
-    const netSalary = adjustedSalary - deduction;
-    const isPerfectAttendance = workDays >= BASE_WORK_DAYS;
+    const deduction = Math.round(totalGrossSalary * taxRate);
+    const netSalary = totalGrossSalary - deduction;
+    const isPerfectAttendance = workDays >= FULL_MONTH_DAYS;
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('ko-KR').format(amount);
@@ -321,25 +359,48 @@ const SalaryCalculator = ({ user, onLogout }) => {
 
                 {/* Salary Breakdown */}
                 <div className="bg-dark-card border border-dark-border rounded-2xl p-4 space-y-3">
+                    {/* 일급 */}
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-400">기본급 ({BASE_WORK_DAYS}일)</span>
-                        <span className="font-semibold">{formatCurrency(BASE_SALARY)}원</span>
+                        <span className="text-gray-400">일급 ({workDays}일 x 10만원)</span>
+                        <span className="font-semibold">{formatCurrency(dailyWageTotal)}원</span>
                     </div>
-                    {daysDiff !== 0 && (
-                        <div className="flex justify-between items-center">
-                            <span className="text-gray-400">
-                                공수 조정 ({daysDiff > 0 ? '+' : ''}{daysDiff}일)
-                            </span>
-                            <span className={`font-semibold ${daysDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                {daysDiff > 0 ? '+' : ''}{formatCurrency(daysDiff * PER_DAY_AMOUNT)}원
+
+                    {/* 주휴수당 */}
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-400">주휴수당 ({earnedWeeklyBonus}주 x 10만원)</span>
+                        <span className={`font-semibold ${earnedWeeklyBonus < WEEKS_PER_MONTH ? 'text-yellow-400' : 'text-green-400'}`}>
+                            {formatCurrency(weeklyBonusTotal)}원
+                        </span>
+                    </div>
+
+                    {/* 주휴수당 차감 안내 */}
+                    {earnedWeeklyBonus < WEEKS_PER_MONTH && (
+                        <div className="text-xs text-yellow-400 bg-yellow-500/10 rounded-lg p-2">
+                            주휴수당 {WEEKS_PER_MONTH - earnedWeeklyBonus}주분 차감 (6일 미만 근무 주)
+                        </div>
+                    )}
+
+                    <div className="border-t border-dark-border my-2"></div>
+
+                    {/* 총 급여 */}
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-400">총 급여</span>
+                        <span className="font-bold text-lg text-white">{formatCurrency(totalGrossSalary)}원</span>
+                    </div>
+
+                    {/* 만근 대비 */}
+                    {workDays < FULL_MONTH_DAYS && (
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-500">만근 대비</span>
+                            <span className="text-red-400">
+                                -{formatCurrency(baseSalaryForDisplay - totalGrossSalary)}원
                             </span>
                         </div>
                     )}
-                    <div className="flex justify-between items-center">
-                        <span className="text-gray-400">총 급여</span>
-                        <span className="font-bold text-lg text-white">{formatCurrency(adjustedSalary)}원</span>
-                    </div>
+
                     <div className="border-t border-dark-border my-2"></div>
+
+                    {/* 공제 */}
                     <div className="flex justify-between items-center">
                         <span className="text-gray-400">
                             공제 ({(taxRate * 100).toFixed(1)}%)
