@@ -1,19 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase 설정
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Supabase 클라이언트 생성 (환경 변수가 없으면 null)
+export const supabase = supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
+
+// Supabase 사용 가능 여부
+export const isSupabaseEnabled = () => !!supabase;
 
 // 사용자 인증 상태 체크
 export const getCurrentUser = async () => {
+    if (!supabase) return null;
     const { data: { user } } = await supabase.auth.getUser();
     return user;
 };
 
 // 로그인
 export const signIn = async (username, password) => {
+    if (!supabase) {
+        return { data: null, error: { message: 'Supabase not configured' } };
+    }
+
     const email = `${username}@safety-pay.local`; // 임시 이메일 변환
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -24,6 +35,10 @@ export const signIn = async (username, password) => {
 
 // 회원가입
 export const signUp = async (username, password, userData) => {
+    if (!supabase) {
+        return { data: null, error: { message: 'Supabase not configured' } };
+    }
+
     const email = `${username}@safety-pay.local`; // 임시 이메일 변환
 
     // 1. Auth 회원가입
@@ -54,6 +69,7 @@ export const signUp = async (username, password, userData) => {
 
 // 로그아웃
 export const signOut = async () => {
+    if (!supabase) return { error: null };
     const { error } = await supabase.auth.signOut();
     return { error };
 };
