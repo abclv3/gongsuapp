@@ -159,8 +159,11 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
         const finalWorkSite = isCustomSite ? customSiteName.trim() : formData.workSite;
 
         try {
+            // 이메일을 username@safety-pay.com 형태로 생성 (아이디 기반 로그인용)
+            const authEmail = `${formData.username}@safety-pay.com`;
+
             // Supabase 회원가입 시도
-            const { data, error } = await signUp(formData.email, formData.password, {
+            const { data, error } = await signUp(authEmail, formData.password, {
                 username: formData.username,
                 name: formData.name,
                 phone: formData.phone,

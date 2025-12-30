@@ -3,7 +3,7 @@ import { Lock, User, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 import { signIn, supabase, isSupabaseEnabled } from '../lib/supabase';
 
 const Login = ({ onSuccess, onSignUp }) => {
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -14,8 +14,8 @@ const Login = ({ onSuccess, onSignUp }) => {
         e.preventDefault();
         setError('');
 
-        if (!email.trim() || !password.trim()) {
-            setError('이메일과 비밀번호를 입력하세요');
+        if (!username.trim() || !password.trim()) {
+            setError('아이디와 비밀번호를 입력하세요');
             triggerShake();
             return;
         }
@@ -23,21 +23,42 @@ const Login = ({ onSuccess, onSignUp }) => {
         setLoading(true);
 
         try {
-            // Supabase 인증 시도
-            const { data, error: authError } = await signIn(email, password);
+            // 1. 먼저 username으로 이메일 조회
+            let userEmail = username; // 기본값 (이메일 직접 입력한 경우)
+            let userData = null;
 
+            if (supabase && !username.includes('@')) {
+                // 아이디로 입력한 경우 - DB에서 이메일 조회
+                const { data: userRecord, error: lookupError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('username', username)
+                    .single();
+
+                if (lookupError || !userRecord) {
+                    setError('존재하지 않는 아이디입니다.');
+                    triggerShake();
+                    setLoading(false);
+                    return;
+                }
+
+                // 이메일은 username@safety-pay.com 형태로 저장됨
+                userEmail = `${username}@safety-pay.com`;
+                userData = userRecord;
+            }
+
+            // 2. Supabase 인증
+            const { data, error: authError } = await signIn(userEmail, password);
 
             if (authError) {
-                // Supabase 인증 실패
-                setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+                setError('아이디 또는 비밀번호가 올바르지 않습니다.');
                 triggerShake();
                 setLoading(false);
                 return;
             }
 
-            // Supabase에서 사용자 정보 가져오기
-            let userData = null;
-            if (supabase) {
+            // 3. 사용자 정보가 없으면 다시 조회
+            if (!userData && supabase) {
                 const { data: userDataResult, error: userError } = await supabase
                     .from('users')
                     .select('*')
@@ -113,17 +134,17 @@ const Login = ({ onSuccess, onSignUp }) => {
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-400 mb-2">
                             <User className="w-4 h-4 inline mr-1" />
-                            이메일
+                            아이디
                         </label>
                         <input
-                            type="email"
-                            value={email}
+                            type="text"
+                            value={username}
                             onChange={(e) => {
-                                setEmail(e.target.value);
+                                setUsername(e.target.value);
                                 setError('');
                             }}
                             className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all"
-                            placeholder="이메일을 입력하세요"
+                            placeholder="아이디를 입력하세요"
                             autoFocus
                             disabled={loading}
                         />
