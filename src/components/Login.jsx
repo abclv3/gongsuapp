@@ -113,17 +113,17 @@ const Login = ({ onSuccess, onSignUp }) => {
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-400 mb-2">
                             <User className="w-4 h-4 inline mr-1" />
-                            아이디
+                            이메일
                         </label>
                         <input
-                            type="text"
-                            value={username}
+                            type="email"
+                            value={email}
                             onChange={(e) => {
-                                setUsername(e.target.value);
+                                setEmail(e.target.value);
                                 setError('');
                             }}
                             className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all"
-                            placeholder="아이디를 입력하세요"
+                            placeholder="이메일을 입력하세요"
                             autoFocus
                             disabled={loading}
                         />
