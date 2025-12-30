@@ -205,11 +205,6 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
                 workSite: finalWorkSite,
             };
 
-            // localStorage에도 백업
-            const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
-            users.push({ ...newUser, password: formData.password });
-            localStorage.setItem('safety-pay-users', JSON.stringify(users));
-
             alert(`${formData.name}님, 회원가입이 완료되었습니다!\n현장: ${finalWorkSite}\n✓ 클라우드 동기화 완료`);
             onSuccess(newUser);
         } catch (err) {
