@@ -26,21 +26,12 @@ const Login = ({ onSuccess, onSignUp }) => {
             // Supabase 인증 시도
             const { data, error: authError } = await signIn(email, password);
 
+
             if (authError) {
-                // Supabase 인증 실패 시 localStorage fallback
-                console.log('Supabase 인증 실패, localStorage 시도');
-                const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
-                const localUser = users.find(u => u.username === username && u.password === password);
-
-                if (localUser) {
-                    sessionStorage.setItem('authenticated', 'true');
-                    sessionStorage.setItem('current-user', JSON.stringify(localUser));
-                    onSuccess(localUser);
-                    return;
-                }
-
-                setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+                // Supabase 인증 실패
+                setError('이메일 또는 비밀번호가 올바르지 않습니다.');
                 triggerShake();
+                setLoading(false);
                 return;
             }
 
