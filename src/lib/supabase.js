@@ -61,7 +61,7 @@ export const signIn = async (username, password) => {
     }
 
     try {
-        const email = `${username}@safety-pay.local`;
+        const email = `${username}@safety-pay.com`; // .local → .com
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -79,7 +79,7 @@ export const signUp = async (username, password, userData) => {
     }
 
     try {
-        const email = `${username}@safety-pay.local`;
+        const email = `${username}@safety-pay.com`; // .local → .com
 
         // 1. Auth 회원가입
         const { data: authData, error: authError } = await supabase.auth.signUp({
