@@ -18,6 +18,7 @@ const GPS_SEARCH_RADIUS_KM = 10; // GPS 검색 반경 10km
 const SignUp = ({ onSuccess, onBackToLogin }) => {
     const [formData, setFormData] = useState({
         username: '',
+        email: '',
         password: '',
         name: '',
         phone: '',
@@ -121,6 +122,11 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
         if (!formData.username.trim()) newErrors.username = '아이디를 입력하세요';
         else if (formData.username.length < 4) newErrors.username = '아이디는 4자 이상이어야 합니다';
 
+        if (!formData.email.trim()) newErrors.email = '이메일을 입력하세요';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            newErrors.email = '올바른 이메일 형식이 아닙니다';
+        }
+
         if (!formData.password.trim()) newErrors.password = '비밀번호를 입력하세요';
         else if (formData.password.length < 6) newErrors.password = '비밀번호는 6자 이상이어야 합니다';
 
@@ -154,7 +160,8 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
 
         try {
             // Supabase 회원가입 시도
-            const { data, error } = await signUp(formData.username, formData.password, {
+            const { data, error } = await signUp(formData.email, formData.password, {
+                username: formData.username,
                 name: formData.name,
                 phone: formData.phone,
                 hireDate: formData.hireDate,
@@ -241,6 +248,22 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
                             placeholder="4자 이상"
                         />
                         {errors.username && <p className="text-red-400 text-xs mt-1">{errors.username}</p>}
+                    </div>
+
+                    {/* 이메일 */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                            <User className="w-4 h-4 inline mr-1" />
+                            이메일
+                        </label>
+                        <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => handleInputChange('email', e.target.value)}
+                            className={`w-full bg-dark-bg border-2 ${errors.email ? 'border-red-500' : 'border-dark-border'} focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all`}
+                            placeholder="example@gmail.com"
+                        />
+                        {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                     </div>
 
                     {/* 비밀번호 */}

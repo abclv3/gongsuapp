@@ -55,13 +55,12 @@ export const getCurrentUser = async () => {
 };
 
 // 로그인
-export const signIn = async (username, password) => {
+export const signIn = async (email, password) => {
     if (!supabase) {
         return { data: null, error: { message: 'Supabase not configured' } };
     }
 
     try {
-        const email = `${username}@safety-pay.com`; // .local → .com
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -73,14 +72,12 @@ export const signIn = async (username, password) => {
 };
 
 // 회원가입
-export const signUp = async (username, password, userData) => {
+export const signUp = async (email, password, userData) => {
     if (!supabase) {
         return { data: null, error: { message: 'Supabase not configured' } };
     }
 
     try {
-        const email = `${username}@safety-pay.com`; // .local → .com
-
         // 1. Auth 회원가입
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
@@ -95,7 +92,7 @@ export const signUp = async (username, password, userData) => {
             .insert([
                 {
                     auth_id: authData.user.id,
-                    username,
+                    username: userData.username,
                     name: userData.name,
                     phone: userData.phone,
                     hire_date: userData.hireDate,

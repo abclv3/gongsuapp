@@ -3,7 +3,7 @@ import { Lock, User, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 import { signIn, supabase, isSupabaseEnabled } from '../lib/supabase';
 
 const Login = ({ onSuccess, onSignUp }) => {
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -14,8 +14,8 @@ const Login = ({ onSuccess, onSignUp }) => {
         e.preventDefault();
         setError('');
 
-        if (!username.trim() || !password.trim()) {
-            setError('아이디와 비밀번호를 입력하세요');
+        if (!email.trim() || !password.trim()) {
+            setError('이메일과 비밀번호를 입력하세요');
             triggerShake();
             return;
         }
@@ -24,7 +24,7 @@ const Login = ({ onSuccess, onSignUp }) => {
 
         try {
             // Supabase 인증 시도
-            const { data, error: authError } = await signIn(username, password);
+            const { data, error: authError } = await signIn(email, password);
 
             if (authError) {
                 // Supabase 인증 실패 시 localStorage fallback
