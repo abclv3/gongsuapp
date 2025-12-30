@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, Eye, EyeOff, LogIn, Loader2, Mail, Phone, X, Search, KeyRound } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, LogIn, Loader2, Mail, Phone, X, Search, KeyRound, Check } from 'lucide-react';
 import { signIn, supabase } from '../lib/supabase';
 
 const Login = ({ onSuccess, onSignUp }) => {
@@ -18,12 +18,17 @@ const Login = ({ onSuccess, onSignUp }) => {
     const [findIdLoading, setFindIdLoading] = useState(false);
     const [findIdError, setFindIdError] = useState('');
 
-    // 비밀번호 찾기 상태
+    // 비밀번호 찾기 상태 (새 방식)
     const [showFindPw, setShowFindPw] = useState(false);
+    const [findPwStep, setFindPwStep] = useState(1); // 1: 본인확인, 2: 새 비밀번호 입력, 3: 완료
     const [findPwEmail, setFindPwEmail] = useState('');
+    const [findPwPhone, setFindPwPhone] = useState('');
+    const [findPwNewPassword, setFindPwNewPassword] = useState('');
+    const [findPwConfirmPassword, setFindPwConfirmPassword] = useState('');
+    const [findPwAuthId, setFindPwAuthId] = useState(null);
     const [findPwLoading, setFindPwLoading] = useState(false);
-    const [findPwMessage, setFindPwMessage] = useState('');
     const [findPwError, setFindPwError] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -152,28 +157,76 @@ const Login = ({ onSuccess, onSignUp }) => {
         }
     };
 
-    // 비밀번호 찾기 (재설정 링크 발송)
-    const handleFindPw = async () => {
-        if (!findPwEmail.trim()) {
-            setFindPwError('이메일을 입력하세요.');
+    // 비밀번호 찾기 - Step 1: 본인 확인
+    const handleVerifyIdentity = async () => {
+        if (!findPwEmail.trim() || !findPwPhone.trim()) {
+            setFindPwError('이메일과 휴대폰 번호를 모두 입력하세요.');
             return;
         }
 
         setFindPwLoading(true);
         setFindPwError('');
-        setFindPwMessage('');
 
         try {
-            const { error } = await supabase.auth.resetPasswordForEmail(findPwEmail, {
-                redirectTo: window.location.origin,
+            const { data, error } = await supabase.rpc('verify_user_identity', {
+                input_email: findPwEmail,
+                input_phone: findPwPhone
             });
 
             if (error) {
-                setFindPwError('이메일 발송에 실패했습니다. 이메일 주소를 확인하세요.');
+                setFindPwError('조회 중 오류가 발생했습니다.');
                 return;
             }
 
-            setFindPwMessage('비밀번호 재설정 링크가 이메일로 발송되었습니다. 메일함을 확인하세요.');
+            if (data) {
+                setFindPwAuthId(data);
+                setFindPwStep(2); // 새 비밀번호 입력 단계로
+            } else {
+                setFindPwError('입력하신 정보와 일치하는 계정이 없습니다.');
+            }
+        } catch (err) {
+            setFindPwError('서버 연결 실패');
+        } finally {
+            setFindPwLoading(false);
+        }
+    };
+
+    // 비밀번호 찾기 - Step 2: 새 비밀번호 설정
+    const handleResetPassword = async () => {
+        if (!findPwNewPassword.trim()) {
+            setFindPwError('새 비밀번호를 입력하세요.');
+            return;
+        }
+
+        if (findPwNewPassword.length < 6) {
+            setFindPwError('비밀번호는 6자 이상이어야 합니다.');
+            return;
+        }
+
+        if (findPwNewPassword !== findPwConfirmPassword) {
+            setFindPwError('비밀번호가 일치하지 않습니다.');
+            return;
+        }
+
+        setFindPwLoading(true);
+        setFindPwError('');
+
+        try {
+            const { data, error } = await supabase.rpc('reset_user_password', {
+                user_auth_id: findPwAuthId,
+                new_password: findPwNewPassword
+            });
+
+            if (error) {
+                setFindPwError('비밀번호 변경에 실패했습니다: ' + error.message);
+                return;
+            }
+
+            if (data) {
+                setFindPwStep(3); // 완료 단계로
+            } else {
+                setFindPwError('비밀번호 변경에 실패했습니다.');
+            }
         } catch (err) {
             setFindPwError('서버 연결 실패');
         } finally {
@@ -196,8 +249,12 @@ const Login = ({ onSuccess, onSignUp }) => {
 
     const closeFindPwModal = () => {
         setShowFindPw(false);
+        setFindPwStep(1);
         setFindPwEmail('');
-        setFindPwMessage('');
+        setFindPwPhone('');
+        setFindPwNewPassword('');
+        setFindPwConfirmPassword('');
+        setFindPwAuthId(null);
         setFindPwError('');
     };
 
@@ -398,7 +455,7 @@ const Login = ({ onSuccess, onSignUp }) => {
                 </div>
             )}
 
-            {/* 비밀번호 찾기 모달 */}
+            {/* 비밀번호 찾기 모달 (새 방식) */}
             {showFindPw && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                     <div className="bg-dark-card border border-dark-border rounded-2xl p-6 max-w-md w-full">
@@ -412,42 +469,143 @@ const Login = ({ onSuccess, onSignUp }) => {
                             </button>
                         </div>
 
-                        <p className="text-gray-400 text-sm mb-4">
-                            가입 시 등록한 이메일로 비밀번호 재설정 링크가 발송됩니다.
-                        </p>
+                        {/* Step 1: 본인 확인 */}
+                        {findPwStep === 1 && (
+                            <>
+                                <p className="text-gray-400 text-sm mb-4">
+                                    가입 시 등록한 이메일과 휴대폰 번호를 입력하세요.
+                                </p>
 
-                        {/* 이메일 입력 */}
-                        <input
-                            type="email"
-                            value={findPwEmail}
-                            onChange={(e) => setFindPwEmail(e.target.value)}
-                            placeholder="가입 시 등록한 이메일"
-                            className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all mb-4"
-                        />
+                                <div className="space-y-3 mb-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                                            <Mail className="w-4 h-4 inline mr-1" />
+                                            이메일
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={findPwEmail}
+                                            onChange={(e) => setFindPwEmail(e.target.value)}
+                                            placeholder="example@email.com"
+                                            className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                                            <Phone className="w-4 h-4 inline mr-1" />
+                                            휴대폰 번호
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={findPwPhone}
+                                            onChange={(e) => setFindPwPhone(e.target.value)}
+                                            placeholder="01012345678"
+                                            className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all"
+                                        />
+                                    </div>
+                                </div>
 
-                        {/* 에러 메시지 */}
-                        {findPwError && (
-                            <div className="mb-4 bg-red-500/10 border border-red-500/50 rounded-xl p-3 text-center">
-                                <p className="text-red-400 text-sm">{findPwError}</p>
-                            </div>
+                                {findPwError && (
+                                    <div className="mb-4 bg-red-500/10 border border-red-500/50 rounded-xl p-3 text-center">
+                                        <p className="text-red-400 text-sm">{findPwError}</p>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={handleVerifyIdentity}
+                                    disabled={findPwLoading}
+                                    className="w-full bg-safety-orange text-white font-bold py-3 rounded-xl hover:bg-orange-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {findPwLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                                    {findPwLoading ? '확인 중...' : '본인 확인'}
+                                </button>
+                            </>
                         )}
 
-                        {/* 성공 메시지 */}
-                        {findPwMessage && (
-                            <div className="mb-4 bg-green-500/10 border border-green-500/50 rounded-xl p-3 text-center">
-                                <p className="text-green-400 text-sm">{findPwMessage}</p>
-                            </div>
+                        {/* Step 2: 새 비밀번호 입력 */}
+                        {findPwStep === 2 && (
+                            <>
+                                <div className="mb-4 bg-green-500/10 border border-green-500/50 rounded-xl p-3 text-center">
+                                    <p className="text-green-400 text-sm">✓ 본인 확인 완료</p>
+                                </div>
+
+                                <p className="text-gray-400 text-sm mb-4">
+                                    새로운 비밀번호를 입력하세요.
+                                </p>
+
+                                <div className="space-y-3 mb-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                                            <Lock className="w-4 h-4 inline mr-1" />
+                                            새 비밀번호
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type={showNewPassword ? 'text' : 'password'}
+                                                value={findPwNewPassword}
+                                                onChange={(e) => setFindPwNewPassword(e.target.value)}
+                                                placeholder="6자 이상 입력"
+                                                className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all pr-12"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                                            >
+                                                {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                                            <Lock className="w-4 h-4 inline mr-1" />
+                                            비밀번호 확인
+                                        </label>
+                                        <input
+                                            type={showNewPassword ? 'text' : 'password'}
+                                            value={findPwConfirmPassword}
+                                            onChange={(e) => setFindPwConfirmPassword(e.target.value)}
+                                            placeholder="비밀번호 재입력"
+                                            className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                {findPwError && (
+                                    <div className="mb-4 bg-red-500/10 border border-red-500/50 rounded-xl p-3 text-center">
+                                        <p className="text-red-400 text-sm">{findPwError}</p>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={handleResetPassword}
+                                    disabled={findPwLoading}
+                                    className="w-full bg-safety-orange text-white font-bold py-3 rounded-xl hover:bg-orange-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {findPwLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                                    {findPwLoading ? '변경 중...' : '비밀번호 변경'}
+                                </button>
+                            </>
                         )}
 
-                        {/* 발송 버튼 */}
-                        <button
-                            onClick={handleFindPw}
-                            disabled={findPwLoading}
-                            className="w-full bg-safety-orange text-white font-bold py-3 rounded-xl hover:bg-orange-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                            {findPwLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mail className="w-5 h-5" />}
-                            {findPwLoading ? '발송 중...' : '재설정 링크 발송'}
-                        </button>
+                        {/* Step 3: 완료 */}
+                        {findPwStep === 3 && (
+                            <div className="text-center py-4">
+                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 mb-4">
+                                    <Check className="w-8 h-8 text-green-400" />
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-2">비밀번호 변경 완료!</h3>
+                                <p className="text-gray-400 text-sm mb-4">
+                                    새 비밀번호로 로그인하세요.
+                                </p>
+                                <button
+                                    onClick={closeFindPwModal}
+                                    className="w-full bg-safety-orange text-white font-bold py-3 rounded-xl hover:bg-orange-600 transition-all"
+                                >
+                                    로그인 하러 가기
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
