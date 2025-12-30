@@ -165,7 +165,7 @@ const Login = ({ onSuccess, onSignUp }) => {
 
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(findPwEmail, {
-                redirectTo: window.location.origin + '/reset-password',
+                redirectTo: window.location.origin,
             });
 
             if (error) {
