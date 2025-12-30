@@ -52,8 +52,8 @@ const Login = ({ onSuccess, onSignUp }) => {
                 // 사용자 정보가 없으면 기본 정보로 생성
                 const user = {
                     id: data.user.id,
-                    username: username,
-                    name: username,
+                    username: email.split('@')[0], // 이메일 앞부분을 username으로
+                    name: email.split('@')[0],
                     workSite: '현장 미설정',
                     email: data.user.email,
                 };
