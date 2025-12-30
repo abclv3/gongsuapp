@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, LogIn, Loader2, Mail, Phone, X, Search, KeyRound } from 'lucide-react';
 import { signIn, supabase } from '../lib/supabase';
 
 const Login = ({ onSuccess, onSignUp }) => {
@@ -9,6 +9,21 @@ const Login = ({ onSuccess, onSignUp }) => {
     const [error, setError] = useState('');
     const [shake, setShake] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // 아이디 찾기 상태
+    const [showFindId, setShowFindId] = useState(false);
+    const [findIdMethod, setFindIdMethod] = useState('email'); // 'email' or 'phone'
+    const [findIdInput, setFindIdInput] = useState('');
+    const [foundUsername, setFoundUsername] = useState('');
+    const [findIdLoading, setFindIdLoading] = useState(false);
+    const [findIdError, setFindIdError] = useState('');
+
+    // 비밀번호 찾기 상태
+    const [showFindPw, setShowFindPw] = useState(false);
+    const [findPwEmail, setFindPwEmail] = useState('');
+    const [findPwLoading, setFindPwLoading] = useState(false);
+    const [findPwMessage, setFindPwMessage] = useState('');
+    const [findPwError, setFindPwError] = useState('');
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -101,9 +116,89 @@ const Login = ({ onSuccess, onSignUp }) => {
         }
     };
 
+    // 아이디 찾기
+    const handleFindId = async () => {
+        if (!findIdInput.trim()) {
+            setFindIdError(findIdMethod === 'email' ? '이메일을 입력하세요.' : '휴대폰 번호를 입력하세요.');
+            return;
+        }
+
+        setFindIdLoading(true);
+        setFindIdError('');
+        setFoundUsername('');
+
+        try {
+            const rpcName = findIdMethod === 'email' ? 'find_username_by_email' : 'find_username_by_phone';
+            const paramName = findIdMethod === 'email' ? 'input_email' : 'input_phone';
+
+            const { data, error } = await supabase.rpc(rpcName, { [paramName]: findIdInput });
+
+            if (error) {
+                setFindIdError('조회 중 오류가 발생했습니다.');
+                return;
+            }
+
+            if (data) {
+                setFoundUsername(data);
+            } else {
+                setFindIdError(findIdMethod === 'email'
+                    ? '해당 이메일로 가입된 계정이 없습니다.'
+                    : '해당 휴대폰 번호로 가입된 계정이 없습니다.');
+            }
+        } catch (err) {
+            setFindIdError('서버 연결 실패');
+        } finally {
+            setFindIdLoading(false);
+        }
+    };
+
+    // 비밀번호 찾기 (재설정 링크 발송)
+    const handleFindPw = async () => {
+        if (!findPwEmail.trim()) {
+            setFindPwError('이메일을 입력하세요.');
+            return;
+        }
+
+        setFindPwLoading(true);
+        setFindPwError('');
+        setFindPwMessage('');
+
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(findPwEmail, {
+                redirectTo: window.location.origin + '/reset-password',
+            });
+
+            if (error) {
+                setFindPwError('이메일 발송에 실패했습니다. 이메일 주소를 확인하세요.');
+                return;
+            }
+
+            setFindPwMessage('비밀번호 재설정 링크가 이메일로 발송되었습니다. 메일함을 확인하세요.');
+        } catch (err) {
+            setFindPwError('서버 연결 실패');
+        } finally {
+            setFindPwLoading(false);
+        }
+    };
+
     const triggerShake = () => {
         setShake(true);
         setTimeout(() => setShake(false), 500);
+    };
+
+    // 모달 닫기 시 상태 초기화
+    const closeFindIdModal = () => {
+        setShowFindId(false);
+        setFindIdInput('');
+        setFoundUsername('');
+        setFindIdError('');
+    };
+
+    const closeFindPwModal = () => {
+        setShowFindPw(false);
+        setFindPwEmail('');
+        setFindPwMessage('');
+        setFindPwError('');
     };
 
     return (
@@ -174,6 +269,25 @@ const Login = ({ onSuccess, onSignUp }) => {
                         </div>
                     </div>
 
+                    {/* 아이디/비밀번호 찾기 링크 */}
+                    <div className="flex justify-center gap-4 mb-4 text-sm">
+                        <button
+                            type="button"
+                            onClick={() => setShowFindId(true)}
+                            className="text-gray-400 hover:text-safety-orange transition-colors"
+                        >
+                            아이디 찾기
+                        </button>
+                        <span className="text-gray-600">|</span>
+                        <button
+                            type="button"
+                            onClick={() => setShowFindPw(true)}
+                            className="text-gray-400 hover:text-safety-orange transition-colors"
+                        >
+                            비밀번호 찾기
+                        </button>
+                    </div>
+
                     {/* 로그인 버튼 */}
                     <button
                         type="submit"
@@ -214,6 +328,129 @@ const Login = ({ onSuccess, onSignUp }) => {
                     </p>
                 </div>
             </div>
+
+            {/* 아이디 찾기 모달 */}
+            {showFindId && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                    <div className="bg-dark-card border border-dark-border rounded-2xl p-6 max-w-md w-full">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Search className="w-5 h-5 text-safety-orange" />
+                                아이디 찾기
+                            </h2>
+                            <button onClick={closeFindIdModal} className="text-gray-400 hover:text-white">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        {/* 검색 방법 선택 */}
+                        <div className="flex gap-2 mb-4">
+                            <button
+                                onClick={() => { setFindIdMethod('email'); setFindIdInput(''); setFoundUsername(''); setFindIdError(''); }}
+                                className={`flex-1 py-2 rounded-lg font-semibold transition-all ${findIdMethod === 'email' ? 'bg-safety-orange text-white' : 'bg-dark-bg text-gray-400 border border-dark-border'}`}
+                            >
+                                <Mail className="w-4 h-4 inline mr-1" />
+                                이메일
+                            </button>
+                            <button
+                                onClick={() => { setFindIdMethod('phone'); setFindIdInput(''); setFoundUsername(''); setFindIdError(''); }}
+                                className={`flex-1 py-2 rounded-lg font-semibold transition-all ${findIdMethod === 'phone' ? 'bg-safety-orange text-white' : 'bg-dark-bg text-gray-400 border border-dark-border'}`}
+                            >
+                                <Phone className="w-4 h-4 inline mr-1" />
+                                휴대폰
+                            </button>
+                        </div>
+
+                        {/* 입력 필드 */}
+                        <input
+                            type={findIdMethod === 'email' ? 'email' : 'tel'}
+                            value={findIdInput}
+                            onChange={(e) => setFindIdInput(e.target.value)}
+                            placeholder={findIdMethod === 'email' ? '가입 시 등록한 이메일' : '가입 시 등록한 휴대폰 번호'}
+                            className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all mb-4"
+                        />
+
+                        {/* 에러 메시지 */}
+                        {findIdError && (
+                            <div className="mb-4 bg-red-500/10 border border-red-500/50 rounded-xl p-3 text-center">
+                                <p className="text-red-400 text-sm">{findIdError}</p>
+                            </div>
+                        )}
+
+                        {/* 결과 표시 */}
+                        {foundUsername && (
+                            <div className="mb-4 bg-green-500/10 border border-green-500/50 rounded-xl p-4 text-center">
+                                <p className="text-gray-400 text-sm mb-1">찾으시는 아이디는</p>
+                                <p className="text-green-400 text-2xl font-bold">{foundUsername}</p>
+                            </div>
+                        )}
+
+                        {/* 찾기 버튼 */}
+                        <button
+                            onClick={handleFindId}
+                            disabled={findIdLoading}
+                            className="w-full bg-safety-orange text-white font-bold py-3 rounded-xl hover:bg-orange-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {findIdLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                            {findIdLoading ? '조회 중...' : '아이디 찾기'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* 비밀번호 찾기 모달 */}
+            {showFindPw && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                    <div className="bg-dark-card border border-dark-border rounded-2xl p-6 max-w-md w-full">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <KeyRound className="w-5 h-5 text-safety-orange" />
+                                비밀번호 찾기
+                            </h2>
+                            <button onClick={closeFindPwModal} className="text-gray-400 hover:text-white">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <p className="text-gray-400 text-sm mb-4">
+                            가입 시 등록한 이메일로 비밀번호 재설정 링크가 발송됩니다.
+                        </p>
+
+                        {/* 이메일 입력 */}
+                        <input
+                            type="email"
+                            value={findPwEmail}
+                            onChange={(e) => setFindPwEmail(e.target.value)}
+                            placeholder="가입 시 등록한 이메일"
+                            className="w-full bg-dark-bg border-2 border-dark-border focus:border-safety-orange rounded-xl px-4 py-3 text-white outline-none transition-all mb-4"
+                        />
+
+                        {/* 에러 메시지 */}
+                        {findPwError && (
+                            <div className="mb-4 bg-red-500/10 border border-red-500/50 rounded-xl p-3 text-center">
+                                <p className="text-red-400 text-sm">{findPwError}</p>
+                            </div>
+                        )}
+
+                        {/* 성공 메시지 */}
+                        {findPwMessage && (
+                            <div className="mb-4 bg-green-500/10 border border-green-500/50 rounded-xl p-3 text-center">
+                                <p className="text-green-400 text-sm">{findPwMessage}</p>
+                            </div>
+                        )}
+
+                        {/* 발송 버튼 */}
+                        <button
+                            onClick={handleFindPw}
+                            disabled={findPwLoading}
+                            className="w-full bg-safety-orange text-white font-bold py-3 rounded-xl hover:bg-orange-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {findPwLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mail className="w-5 h-5" />}
+                            {findPwLoading ? '발송 중...' : '재설정 링크 발송'}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Shake Animation */}
             <style jsx>{`
