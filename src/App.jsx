@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
 import SalaryCalculator from './components/SalaryCalculator';
+import { signOut } from './lib/supabase';
 
 function App() {
     const [currentView, setCurrentView] = useState('login'); // 'login', 'signup', 'main'
@@ -31,7 +32,8 @@ function App() {
         setCurrentView('main');
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await signOut(); // Supabase 로그아웃
         sessionStorage.removeItem('authenticated');
         sessionStorage.removeItem('current-user');
         setCurrentUser(null);

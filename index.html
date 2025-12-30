@@ -23,15 +23,25 @@
 
 <body>
   <div id="root"></div>
-  <script type="module" src="/src/main.jsx"></script>
+  <script type="module" src="/src/main.jsx?v=final_fix"></script>
 
   <!-- PWA Service Worker Registration -->
   <script>
+    // 기존 캐시 문제 해결을 위한 Service Worker 강제 해제
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('Service Worker registered'))
-          .catch(err => console.log('Service Worker registration failed'));
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        for (let registration of registrations) {
+          registration.unregister().then(function () {
+            console.log('Service Worker unregistered (Force Update)');
+          });
+        }
+      });
+
+      // 캐시 스토리지도 비우기 (확실하게)
+      caches.keys().then(function (names) {
+        for (let name of names) {
+          caches.delete(name);
+        }
       });
     }
   </script>

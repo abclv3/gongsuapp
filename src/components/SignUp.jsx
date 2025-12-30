@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, MapPin, Phone, Calendar, User, Lock, Eye, EyeOff, Loader, Search, Loader2 } from 'lucide-react';
-import { signUp } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 // 주요 현장 목록 (GPS 좌표)
 const WORK_SITES = [
@@ -150,6 +150,12 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
         return Object.keys(newErrors).length === 0;
     };
 
+    // 버전 확인용 알림 (디버깅)
+    useEffect(() => {
+        console.log("Current Mode: RPC Bypass");
+        // alert("업데이트 확인: 최신 보안 패치가 적용되었습니다. (RPC Mode)");
+    }, []);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSignUp = async () => {
@@ -159,34 +165,66 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
         const finalWorkSite = isCustomSite ? customSiteName.trim() : formData.workSite;
 
         try {
-            // 실제 이메일로 Supabase Auth 가입 (이메일로 인증)
-            // Supabase 회원가입 시도
-            const { data, error } = await signUp(formData.email, formData.password, {
-                username: formData.username, // 아이디는 DB에만 저장
+            console.log('🚀 회원가입 요청 시작 (RPC Bypass Mode)');
+
+            // 1. Supabase Auth 가입
+            const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: formData.email,
-                name: formData.name,
-                phone: formData.phone,
-                hireDate: formData.hireDate,
-                workSite: finalWorkSite,
+                password: formData.password,
             });
 
-
-            if (error) {
-                // Supabase 회원가입 실패
-                console.error('Supabase 회원가입 실패:', error.message);
-                setErrors({ username: `회원가입 실패: ${error.message}` });
+            if (authError) {
+                console.error('Supabase Auth 실패:', authError.message);
+                if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+                    setErrors({ username: '이미 사용 중인 이메일입니다.' });
+                } else {
+                    setErrors({ username: `회원가입 실패: ${authError.message}` });
+                }
                 setIsSubmitting(false);
                 return;
             }
 
-            // Supabase 성공
+            console.log('✅ Auth 가입 성공, RPC 함수 호출...');
+
+            // 2. RPC 함수로 Security Definer 권한 실행 (RLS 무시)
+            const { data: rpcData, error: rpcError } = await supabase.rpc('register_new_user', {
+                p_auth_id: authData.user.id,
+                p_email: formData.email,
+                p_username: formData.username,
+                p_name: formData.name,
+                p_phone: formData.phone,
+                p_hire_date: formData.hireDate, // DB 컬럼명 주의 (함수 파라미터는 p_hire_date)
+                p_work_site: finalWorkSite
+            });
+
+            // 1. 네트워크 레벨 에러 체크
+            if (rpcError) {
+                console.error('RPC 실행 실패:', rpcError);
+                setErrors({ username: `데이터 저장 오류: ${rpcError.message}` });
+                setIsSubmitting(false);
+                return;
+            }
+
+            // 2. DB 내부 로직 에러 체크 (JSON 응답)
+            if (rpcData && rpcData.status === 'error') {
+                console.error('DB 내부 에러:', rpcData.message);
+                // 여기에 진짜 에러 이유가 뜹니다
+                setErrors({ username: `DB 저장 실패: ${rpcData.message}` });
+                setIsSubmitting(false);
+                return;
+            }
+
+            // 성공
+            console.log('✅ 모든 과정 완료 (RPC Success)', rpcData);
+
             const newUser = {
-                id: data[0]?.id || Date.now().toString(),
+                id: authData.user.id,
                 username: formData.username,
                 name: formData.name,
                 phone: formData.phone,
                 hireDate: formData.hireDate,
                 workSite: finalWorkSite,
+                email: formData.email,
             };
 
             alert(`${formData.name}님, 회원가입이 완료되었습니다!\n현장: ${finalWorkSite}\n✓ 클라우드 동기화 완료`);
@@ -427,7 +465,7 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
                             onClick={handleSignUp}
                             className="w-full bg-gradient-to-r from-safety-orange to-orange-600 text-white font-bold py-4 rounded-xl hover:shadow-lg hover:shadow-safety-orange/30 transition-all"
                         >
-                            회원가입 완료
+                            회원가입 (최종 패치 적용됨)
                         </button>
                         <button
                             onClick={onBackToLogin}

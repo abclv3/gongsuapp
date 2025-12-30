@@ -71,40 +71,41 @@ export const signIn = async (email, password) => {
     }
 };
 
-// 회원가입
+// 회원가입 (Trigger 방식 - 클라이언트 INSERT 없음)
 export const signUp = async (email, password, userData) => {
     if (!supabase) {
         return { data: null, error: { message: 'Supabase not configured' } };
     }
 
     try {
-        // 1. Auth 회원가입
+        console.log('🚀 회원가입 시작 (Trigger 방식)');
+
+        // 1. Auth 회원가입 (메타데이터 포함)
+        // DB 트리거가 자동으로 public.users 테이블에 데이터를 생성함
+        // 절대 여기에 supabase.from('users').insert 코드가 있으면 안됨!!
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
             password,
-        });
-
-        if (authError) return { data: null, error: authError };
-
-
-        // 2. 사용자 정보 저장 (실제 이메일 포함)
-        const { data, error } = await supabase
-            .from('users')
-            .insert([
-                {
-                    auth_id: authData.user.id,
+            options: {
+                data: {
                     username: userData.username,
-                    email: userData.email, // 실제 이메일 저장
                     name: userData.name,
                     phone: userData.phone,
-                    hire_date: userData.hireDate,
-                    work_site: userData.workSite,
+                    hireDate: userData.hireDate,
+                    workSite: userData.workSite,
                 }
-            ])
-            .select();
+            }
+        });
 
-        return { data, error };
+        if (authError) {
+            console.error('❌ Supabase Auth 회원가입 실패:', authError);
+            return { data: null, error: authError };
+        }
+
+        console.log('✅ Supabase Auth 회원가입 성공:', authData);
+        return { data: authData, error: null };
     } catch (error) {
+        console.error('❌ 회원가입 예외 발생:', error);
         return { data: null, error };
     }
 };

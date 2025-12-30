@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import {
     Calendar,
     Calculator,
@@ -13,7 +13,8 @@ import {
     Briefcase,
     MapPin,
     Edit2,
-    Check
+    Check,
+    Loader2
 } from 'lucide-react';
 import {
     addMonths,
@@ -27,6 +28,19 @@ import {
 } from 'date-fns';
 import AttendanceCalendar from './AttendanceCalendar';
 import { WORK_SITES } from '../data/worksites';
+import {
+    getAttendanceRecords,
+    getHolidayWorkRecords,
+    getVacationRecords,
+    getVacationUsage,
+    useVacationDay,
+    cancelVacationUsage,
+    checkIn as apiCheckIn,
+    checkOut as apiCheckOut,
+    toggleHolidayWork as apiToggleHolidayWork,
+    isValidWorkDay
+} from '../lib/attendanceAPI';
+import { supabase } from '../lib/supabase';
 
 const SalaryCalculator = ({ user, onLogout }) => {
     const today = new Date();
@@ -45,82 +59,165 @@ const SalaryCalculator = ({ user, onLogout }) => {
     const [editedWorksite, setEditedWorksite] = useState(user?.workSite || '');
     const [showWorksiteSuggestions, setShowWorksiteSuggestions] = useState(false);
     const [filteredWorksites, setFilteredWorksites] = useState([]);
+    const [showAttendanceCalendar, setShowAttendanceCalendar] = useState(false);
+
+    // Supabase 데이터 상태
     const [attendanceRecords, setAttendanceRecords] = useState({});
     const [holidayWorkRecords, setHolidayWorkRecords] = useState({});
     const [timeRecords, setTimeRecords] = useState({});
-    const [showAttendanceCalendar, setShowAttendanceCalendar] = useState(false);
+    const [loading, setLoading] = useState(true);
 
+    // 데이터 로딩
+    const loadData = useCallback(async () => {
+        if (!user?.id) return;
+
+        setLoading(true);
+        try {
+            const year = selectedMonth.getFullYear();
+            const month = selectedMonth.getMonth() + 1;
+
+            // 출퇴근 기록 로드
+            const { data: attendanceData, error: attendanceError } = await getAttendanceRecords(user.id, year, month);
+            if (attendanceError) {
+                console.error('출퇴근 기록 로드 오류:', attendanceError);
+            }
+
+            // 공휴일 근무 기록 로드
+            const { data: holidayData, error: holidayError } = await getHolidayWorkRecords(user.id, year, month);
+            if (holidayError) {
+                console.error('공휴일 근무 로드 오류:', holidayError);
+            }
+
+            // 월차 기록 로드
+            const { data: vacationData } = await getVacationRecords(user.id);
+            const { data: usageData } = await getVacationUsage(user.id);
+
+            // 출퇴근 데이터를 캘린더 형식으로 변환
+            const monthKey = format(selectedMonth, 'yyyy-MM');
+            const newTimeRecords = { [monthKey]: {} };
+            const newAttendanceRecords = { [monthKey]: {} };
+
+            if (attendanceData) {
+                attendanceData.forEach(record => {
+                    const dateStr = record.date;
+                    newTimeRecords[monthKey][dateStr] = {
+                        checkIn: record.check_in_time ? record.check_in_time.substring(0, 5) : null,
+                        checkOut: record.check_out_time ? record.check_out_time.substring(0, 5) : null,
+                        isOnTime: record.is_on_time,
+                        isValidOut: record.is_valid_out
+                    };
+                    newAttendanceRecords[monthKey][dateStr] = isValidWorkDay(record);
+                });
+            }
+
+            // 공휴일 근무 데이터 변환
+            const newHolidayWorkRecords = { [monthKey]: {} };
+            if (holidayData) {
+                holidayData.forEach(record => {
+                    newHolidayWorkRecords[monthKey][record.date] = true;
+                });
+            }
+
+            setTimeRecords(newTimeRecords);
+            setAttendanceRecords(newAttendanceRecords);
+            setHolidayWorkRecords(newHolidayWorkRecords);
+
+            // 월차 데이터 설정
+            setVacationDays(vacationData?.length || 0);
+            setUsedVacations(usageData || []);
+
+            // 공수 계산
+            const validDays = attendanceData?.filter(r => isValidWorkDay(r)).length || 0;
+            const holidayDays = holidayData?.length || 0;
+            setMyWorkDays((validDays + holidayDays).toString());
+            setHolidayWorkCount(holidayDays);
+
+        } catch (error) {
+            console.error('데이터 로드 오류:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [user?.id, selectedMonth]);
+
+    // 데이터 로드
     useEffect(() => {
-        const savedVacationDays = localStorage.getItem('safety-pay-vacation-days');
-        if (savedVacationDays) setVacationDays(parseInt(savedVacationDays));
-
-        const savedUsedVacations = localStorage.getItem('safety-pay-used-vacations');
-        if (savedUsedVacations) setUsedVacations(JSON.parse(savedUsedVacations));
-
-        const savedHireDate = localStorage.getItem('safety-pay-hire-date');
-        if (savedHireDate) setHireDate(savedHireDate);
-
-        const savedAttendance = localStorage.getItem('safety-pay-attendance');
-        if (savedAttendance) setAttendanceRecords(JSON.parse(savedAttendance));
-
-        const savedHolidayWork = localStorage.getItem('safety-pay-holiday-work');
-        if (savedHolidayWork) setHolidayWorkRecords(JSON.parse(savedHolidayWork));
-
-        const savedTimeRecords = localStorage.getItem('safety-pay-time-records');
-        if (savedTimeRecords) setTimeRecords(JSON.parse(savedTimeRecords));
-    }, []);
+        loadData();
+    }, [loadData]);
 
     // 급여 상수
-    const DAILY_WAGE = 100000; // 일당 10만원
-    const WEEKLY_BONUS = 100000; // 주휴수당 (주당 10만원, 6일 만근 시)
-    const WEEKS_PER_MONTH = 4; // 4주
-    const DAYS_PER_WEEK = 6; // 주당 6일 근무 (+ 1일 주휴)
-    const BASE_WORK_DAYS = WEEKS_PER_MONTH * DAYS_PER_WEEK; // 24일 실 근무
-    const FULL_MONTH_DAYS = 26; // 만근 기준 (24일 + 주휴환산 2일 또는 UI 표시용)
-    const BASE_WAGE = DAILY_WAGE * BASE_WORK_DAYS; // 240만원 (실 근무)
-    const MAX_WEEKLY_BONUS = WEEKLY_BONUS * WEEKS_PER_MONTH; // 40만원 (주휴수당)
-    const BASE_SALARY = BASE_WAGE + MAX_WEEKLY_BONUS; // 280만원... 아니 300만원 맞추려면 조정 필요
+    const DAILY_WAGE = 100000;
+    const WEEKLY_BONUS = 100000;
+    const WEEKS_PER_MONTH = 4;
+    const DAYS_PER_WEEK = 6;
+    const BASE_WORK_DAYS = WEEKS_PER_MONTH * DAYS_PER_WEEK;
+    const FULL_MONTH_DAYS = 26;
+    const BASE_WAGE = DAILY_WAGE * BASE_WORK_DAYS;
+    const MAX_WEEKLY_BONUS = WEEKLY_BONUS * WEEKS_PER_MONTH;
+    const BASE_SALARY = BASE_WAGE + MAX_WEEKLY_BONUS;
 
-    // 실제 계산을 위한 상수 (26일 만근 = 300만원 기준)
-    const PER_DAY_AMOUNT = 100000; // 일당
-    const PER_WEEK_BONUS = 100000; // 주휴수당 (주당)
+    const PER_DAY_AMOUNT = 100000;
+    const PER_WEEK_BONUS = 100000;
 
     const remainingVacationDays = vacationDays - usedVacations.length;
 
-    const handleUseVacation = () => {
+    const handleUseVacation = async () => {
         if (remainingVacationDays <= 0) {
             alert('사용 가능한 월차가 없습니다.');
             return;
         }
-        const newUsedVacation = { date: vacationDate, usedAt: new Date().toISOString() };
-        const updatedUsedVacations = [...usedVacations, newUsedVacation];
-        setUsedVacations(updatedUsedVacations);
-        localStorage.setItem('safety-pay-used-vacations', JSON.stringify(updatedUsedVacations));
+
+        const { error } = await useVacationDay(user.id, vacationDate);
+        if (error) {
+            alert('월차 사용 등록에 실패했습니다: ' + error.message);
+            return;
+        }
+
         setShowVacationModal(false);
         alert('월차가 사용되었습니다.');
+        loadData(); // 데이터 새로고침
     };
 
-    const handleDeleteVacation = (index) => {
+    const handleDeleteVacation = async (usageId) => {
         if (confirm('이 월차 기록을 삭제하시겠습니까?')) {
-            const updatedUsedVacations = usedVacations.filter((_, i) => i !== index);
-            setUsedVacations(updatedUsedVacations);
-            localStorage.setItem('safety-pay-used-vacations', JSON.stringify(updatedUsedVacations));
+            const { error } = await cancelVacationUsage(usageId);
+            if (error) {
+                alert('월차 삭제에 실패했습니다: ' + error.message);
+                return;
+            }
+            loadData(); // 데이터 새로고침
         }
     };
 
-    const handleHireDateChange = (date) => {
+    const handleHireDateChange = async (date) => {
         setHireDate(date);
-        localStorage.setItem('safety-pay-hire-date', date);
+        // Supabase users 테이블 업데이트
+        if (supabase && user?.id) {
+            await supabase
+                .from('users')
+                .update({ hire_date: date })
+                .eq('id', user.id);
+        }
     };
 
-    const handleWorksiteChange = () => {
+    const handleWorksiteChange = async () => {
         if (!editedWorksite.trim()) {
             alert('현장명을 입력해주세요.');
             return;
         }
-        const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
-        const updatedUsers = users.map(u => u.id === user.id ? { ...u, workSite: editedWorksite.trim() } : u);
-        localStorage.setItem('safety-pay-users', JSON.stringify(updatedUsers));
+
+        // Supabase users 테이블 업데이트
+        if (supabase && user?.id) {
+            const { error } = await supabase
+                .from('users')
+                .update({ work_site: editedWorksite.trim() })
+                .eq('id', user.id);
+
+            if (error) {
+                alert('현장 변경에 실패했습니다: ' + error.message);
+                return;
+            }
+        }
+
         const updatedUser = { ...user, workSite: editedWorksite.trim() };
         sessionStorage.setItem('current-user', JSON.stringify(updatedUser));
         setIsEditingWorksite(false);
@@ -159,38 +256,67 @@ const SalaryCalculator = ({ user, onLogout }) => {
 
     const tenure = calculateTenure();
 
-    const handleToggleAttendance = (monthKey, dateStr) => {
-        const newRecords = { ...attendanceRecords };
-        if (!newRecords[monthKey]) newRecords[monthKey] = {};
-        newRecords[monthKey][dateStr] = !newRecords[monthKey][dateStr];
-        setAttendanceRecords(newRecords);
-        localStorage.setItem('safety-pay-attendance', JSON.stringify(newRecords));
-        const workedDays = Object.values(newRecords[monthKey] || {}).filter(v => v).length;
-        setMyWorkDays(workedDays.toString());
-    };
+    // 출근 처리 (Supabase 저장)
+    const handleCheckIn = async (monthKey, dateStr, timeStr, isOnTime) => {
+        const { error } = await apiCheckIn(user.id, user.workSite, timeStr);
+        if (error) {
+            console.error('출근 기록 오류:', error);
+            alert('출근 기록에 실패했습니다: ' + error.message);
+            return;
+        }
 
-    const handleToggleHolidayWork = (monthKey, dateStr) => {
-        const newRecords = { ...holidayWorkRecords };
-        if (!newRecords[monthKey]) newRecords[monthKey] = {};
-        newRecords[monthKey][dateStr] = !newRecords[monthKey][dateStr];
-        setHolidayWorkRecords(newRecords);
-        localStorage.setItem('safety-pay-holiday-work', JSON.stringify(newRecords));
-    };
-
-    const handleCheckIn = (monthKey, dateStr, timeStr, isOnTime) => {
+        // 로컬 상태 업데이트
         const newRecords = { ...timeRecords };
         if (!newRecords[monthKey]) newRecords[monthKey] = {};
         newRecords[monthKey][dateStr] = { ...newRecords[monthKey][dateStr], checkIn: timeStr, isOnTime };
         setTimeRecords(newRecords);
-        localStorage.setItem('safety-pay-time-records', JSON.stringify(newRecords));
     };
 
-    const handleCheckOut = (monthKey, dateStr, timeStr, isValidOut) => {
+    // 퇴근 처리 (Supabase 저장)
+    const handleCheckOut = async (monthKey, dateStr, timeStr, isValidOut) => {
+        const { error } = await apiCheckOut(user.id, timeStr);
+        if (error) {
+            console.error('퇴근 기록 오류:', error);
+            alert('퇴근 기록에 실패했습니다: ' + error.message);
+            return;
+        }
+
+        // 로컬 상태 업데이트
         const newRecords = { ...timeRecords };
         if (!newRecords[monthKey]) newRecords[monthKey] = {};
         newRecords[monthKey][dateStr] = { ...newRecords[monthKey][dateStr], checkOut: timeStr, isValidOut };
         setTimeRecords(newRecords);
-        localStorage.setItem('safety-pay-time-records', JSON.stringify(newRecords));
+
+        // 출퇴근 완료 후 데이터 새로고침
+        loadData();
+    };
+
+    // 공휴일 근무 토글 (Supabase 저장)
+    const handleToggleHolidayWork = async (monthKey, dateStr) => {
+        const currentValue = holidayWorkRecords[monthKey]?.[dateStr] || false;
+        const newValue = !currentValue;
+
+        const { error } = await apiToggleHolidayWork(user.id, user.workSite, dateStr, newValue);
+        if (error) {
+            console.error('공휴일 근무 기록 오류:', error);
+            alert('공휴일 근무 기록에 실패했습니다: ' + error.message);
+            return;
+        }
+
+        // 로컬 상태 업데이트
+        const newRecords = { ...holidayWorkRecords };
+        if (!newRecords[monthKey]) newRecords[monthKey] = {};
+        newRecords[monthKey][dateStr] = newValue;
+        setHolidayWorkRecords(newRecords);
+
+        // 데이터 새로고침
+        loadData();
+    };
+
+    // 출근 토글 (더 이상 사용하지 않음 - 출퇴근 시간으로 대체)
+    const handleToggleAttendance = (monthKey, dateStr) => {
+        // 이 함수는 더 이상 사용되지 않음
+        console.log('handleToggleAttendance is deprecated');
     };
 
     // 공수 자동 업데이트 핸들러
@@ -203,32 +329,24 @@ const SalaryCalculator = ({ user, onLogout }) => {
     const workDays = parseInt(myWorkDays) || 0;
 
     // 주휴수당 계산
-    // 만근 기준: 26일 (4주 x 6일 + 2일) = 24일 실근무 + 4주 주휴수당
-    // 실제 로직: 각 주별로 6일 근무 시 주휴수당 지급
     const calculateWeeklyBonus = () => {
-        // 간단 계산: 6일당 1주휴수당
         const fullWeeks = Math.floor(workDays / DAYS_PER_WEEK);
         const remainingDays = workDays % DAYS_PER_WEEK;
-
-        // 마지막 주 6일 이상이면 주휴수당 추가
         let weeklyBonusCount = fullWeeks;
         if (remainingDays >= DAYS_PER_WEEK) {
             weeklyBonusCount++;
         }
-
-        // 최대 4주
         return Math.min(weeklyBonusCount, WEEKS_PER_MONTH);
     };
 
     const earnedWeeklyBonus = calculateWeeklyBonus();
-    const dailyWageTotal = workDays * DAILY_WAGE; // 실 근무일 x 일당
-    const weeklyBonusTotal = earnedWeeklyBonus * WEEKLY_BONUS; // 주휴수당
+    const dailyWageTotal = workDays * DAILY_WAGE;
+    const weeklyBonusTotal = earnedWeeklyBonus * WEEKLY_BONUS;
     const totalGrossSalary = dailyWageTotal + weeklyBonusTotal;
 
-    // 만근 기준과 비교
-    const fullMonthGross = (FULL_MONTH_DAYS * DAILY_WAGE); // 260만원 + 40만원 = 300만원
-    const maxWeeklyBonus = WEEKS_PER_MONTH * WEEKLY_BONUS; // 40만원
-    const baseSalaryForDisplay = 3000000; // 표시용 만근 급여
+    const fullMonthGross = (FULL_MONTH_DAYS * DAILY_WAGE);
+    const maxWeeklyBonus = WEEKS_PER_MONTH * WEEKLY_BONUS;
+    const baseSalaryForDisplay = 3000000;
 
     const taxRate = deductionType === 'tax' ? 0.033 : 0.094;
     const deduction = Math.round(totalGrossSalary * taxRate);
@@ -238,6 +356,17 @@ const SalaryCalculator = ({ user, onLogout }) => {
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('ko-KR').format(amount);
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="w-12 h-12 animate-spin text-safety-orange mx-auto mb-4" />
+                    <p className="text-gray-400">데이터를 불러오는 중...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-dark-bg text-white">
@@ -299,7 +428,7 @@ const SalaryCalculator = ({ user, onLogout }) => {
                         <span className="text-4xl font-bold text-safety-orange">{myWorkDays}</span>
                         <span className="text-lg text-gray-400 ml-2">공수</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2 text-center">출퇴근 기록 기반 자동 계산</p>
+                    <p className="text-xs text-gray-500 mt-2 text-center">출퇴근 기록 기반 자동 계산 (DB 저장)</p>
                     {isPerfectAttendance && (
                         <div className="mt-2 flex items-center justify-center gap-2 text-green-400">
                             <Award className="w-4 h-4" />
@@ -537,7 +666,10 @@ const SalaryCalculator = ({ user, onLogout }) => {
                     onToggleHolidayWork={handleToggleHolidayWork}
                     onCheckIn={handleCheckIn}
                     onCheckOut={handleCheckOut}
-                    onClose={() => setShowAttendanceCalendar(false)}
+                    onClose={() => {
+                        setShowAttendanceCalendar(false);
+                        loadData(); // 캘린더 닫을 때 데이터 새로고침
+                    }}
                     onUpdateWorkDays={handleUpdateWorkDays}
                     user={user}
                 />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, User, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
-import { signIn, supabase, isSupabaseEnabled } from '../lib/supabase';
+import { signIn, supabase } from '../lib/supabase';
 
 const Login = ({ onSuccess, onSignUp }) => {
     const [username, setUsername] = useState('');
@@ -23,66 +23,48 @@ const Login = ({ onSuccess, onSignUp }) => {
         setLoading(true);
 
         try {
-            // 1. 먼저 username으로 이메일 조회
-            let userEmail = username; // 기본값 (이메일 직접 입력한 경우)
+            let userEmail = username;
             let userData = null;
 
+            // 아이디로 입력한 경우 - RPC 함수로 이메일 조회
             if (supabase && !username.includes('@')) {
-                // 아이디로 입력한 경우 - DB에서 실제 이메일 조회
-                const { data: userRecord, error: lookupError } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('username', username)
-                    .single();
+                const { data: emailData, error: rpcError } = await supabase
+                    .rpc('get_email_by_username', { input_username: username });
 
-                if (lookupError || !userRecord) {
+                if (rpcError || !emailData) {
                     setError('존재하지 않는 아이디입니다.');
                     triggerShake();
                     setLoading(false);
                     return;
                 }
-
-                // DB에 저장된 실제 이메일로 인증
-                userEmail = userRecord.email;
-                userData = userRecord;
+                userEmail = emailData;
             }
 
-            // 2. Supabase 인증
+            // Supabase 인증
             const { data, error: authError } = await signIn(userEmail, password);
 
             if (authError) {
+                console.error('로그인 오류:', authError);
                 setError('아이디 또는 비밀번호가 올바르지 않습니다.');
                 triggerShake();
                 setLoading(false);
                 return;
             }
 
-            // 3. 사용자 정보가 없으면 다시 조회
-            if (!userData && supabase) {
+            // 로그인 성공 - 사용자 정보 조회
+            if (supabase && data?.user) {
                 const { data: userDataResult, error: userError } = await supabase
                     .from('users')
                     .select('*')
                     .eq('auth_id', data.user.id)
                     .single();
-                if (!userError) {
+
+                if (!userError && userDataResult) {
                     userData = userDataResult;
                 }
             }
 
-            if (!userData) {
-                // 사용자 정보가 없으면 기본 정보로 생성
-                const user = {
-                    id: data.user.id,
-                    username: email.split('@')[0], // 이메일 앞부분을 username으로
-                    name: email.split('@')[0],
-                    workSite: '현장 미설정',
-                    email: data.user.email,
-                };
-                sessionStorage.setItem('authenticated', 'true');
-                sessionStorage.setItem('current-user', JSON.stringify(user));
-                onSuccess(user);
-            } else {
-                // 사용자 정보가 있으면 사용
+            if (userData) {
                 const user = {
                     id: userData.id,
                     username: userData.username,
@@ -91,6 +73,20 @@ const Login = ({ onSuccess, onSignUp }) => {
                     phone: userData.phone,
                     hireDate: userData.hire_date,
                     authId: userData.auth_id,
+                    email: userData.email,
+                };
+                sessionStorage.setItem('authenticated', 'true');
+                sessionStorage.setItem('current-user', JSON.stringify(user));
+                onSuccess(user);
+            } else {
+                // 사용자 정보가 없으면 기본 정보로 생성
+                const user = {
+                    id: data.user.id,
+                    username: username,
+                    name: username,
+                    workSite: '현장 미설정',
+                    email: userEmail,
+                    authId: data.user.id,
                 };
                 sessionStorage.setItem('authenticated', 'true');
                 sessionStorage.setItem('current-user', JSON.stringify(user));
