@@ -77,18 +77,8 @@ const Login = ({ onSuccess, onSignUp }) => {
             }
         } catch (err) {
             console.error('로그인 에러:', err);
-            // 네트워크 오류 시 localStorage fallback
-            const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
-            const localUser = users.find(u => u.username === username && u.password === password);
-
-            if (localUser) {
-                sessionStorage.setItem('authenticated', 'true');
-                sessionStorage.setItem('current-user', JSON.stringify(localUser));
-                onSuccess(localUser);
-            } else {
-                setError('서버 연결 실패. 네트워크를 확인해주세요.');
-                triggerShake();
-            }
+            setError('서버 연결 실패. 네트워크를 확인해주세요.');
+            triggerShake();
         } finally {
             setLoading(false);
         }
