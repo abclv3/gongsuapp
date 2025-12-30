@@ -4,10 +4,33 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Supabase 클라이언트 생성 (환경 변수가 없으면 null)
-export const supabase = supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null;
+// 환경 변수 유효성 검사
+const isValidUrl = (url) => {
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
+
+const isValidKey = (key) => key && key.length > 20;
+
+// Supabase 클라이언트 생성 (안전하게)
+let supabase = null;
+try {
+    if (isValidUrl(supabaseUrl) && isValidKey(supabaseAnonKey)) {
+        supabase = createClient(supabaseUrl, supabaseAnonKey);
+        console.log('✅ Supabase connected');
+    } else {
+        console.warn('⚠️ Supabase credentials not configured - running in offline mode');
+    }
+} catch (error) {
+    console.error('❌ Supabase initialization error:', error);
+    supabase = null;
+}
+
+export { supabase };
 
 // Supabase 사용 가능 여부
 export const isSupabaseEnabled = () => !!supabase;
@@ -15,8 +38,13 @@ export const isSupabaseEnabled = () => !!supabase;
 // 사용자 인증 상태 체크
 export const getCurrentUser = async () => {
     if (!supabase) return null;
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        return user;
+    } catch (error) {
+        console.error('getCurrentUser error:', error);
+        return null;
+    }
 };
 
 // 로그인
@@ -25,12 +53,16 @@ export const signIn = async (username, password) => {
         return { data: null, error: { message: 'Supabase not configured' } };
     }
 
-    const email = `${username}@safety-pay.local`; // 임시 이메일 변환
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-    });
-    return { data, error };
+    try {
+        const email = `${username}@safety-pay.local`;
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+        return { data, error };
+    } catch (error) {
+        return { data: null, error };
+    }
 };
 
 // 회원가입
@@ -39,37 +71,45 @@ export const signUp = async (username, password, userData) => {
         return { data: null, error: { message: 'Supabase not configured' } };
     }
 
-    const email = `${username}@safety-pay.local`; // 임시 이메일 변환
+    try {
+        const email = `${username}@safety-pay.local`;
 
-    // 1. Auth 회원가입
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-    });
+        // 1. Auth 회원가입
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+        });
 
-    if (authError) return { data: null, error: authError };
+        if (authError) return { data: null, error: authError };
 
-    // 2. 사용자 정보 저장
-    const { data, error } = await supabase
-        .from('users')
-        .insert([
-            {
-                auth_id: authData.user.id,
-                username,
-                name: userData.name,
-                phone: userData.phone,
-                hire_date: userData.hireDate,
-                work_site: userData.workSite,
-            }
-        ])
-        .select();
+        // 2. 사용자 정보 저장
+        const { data, error } = await supabase
+            .from('users')
+            .insert([
+                {
+                    auth_id: authData.user.id,
+                    username,
+                    name: userData.name,
+                    phone: userData.phone,
+                    hire_date: userData.hireDate,
+                    work_site: userData.workSite,
+                }
+            ])
+            .select();
 
-    return { data, error };
+        return { data, error };
+    } catch (error) {
+        return { data: null, error };
+    }
 };
 
 // 로그아웃
 export const signOut = async () => {
     if (!supabase) return { error: null };
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    try {
+        const { error } = await supabase.auth.signOut();
+        return { error };
+    } catch (error) {
+        return { error };
+    }
 };

@@ -1,5 +1,5 @@
-// Safety-Pay Service Worker v2
-const CACHE_NAME = 'safety-pay-v2';
+// Safety-Pay Service Worker v3 - 캐시 완전 리셋
+const CACHE_NAME = 'safety-pay-v3';
 const urlsToCache = [
     '/',
     '/index.html',
@@ -10,18 +10,20 @@ const urlsToCache = [
 
 // 설치 이벤트 - 즉시 활성화
 self.addEventListener('install', (event) => {
+    console.log('SW v3 installing...');
     self.skipWaiting(); // 즉시 활성화
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                console.log('Cache opened');
+                console.log('Cache v3 opened');
                 return cache.addAll(urlsToCache);
             })
     );
 });
 
-// 활성화 이벤트 - 이전 캐시 삭제
+// 활성화 이벤트 - 이전 캐시 모두 삭제
 self.addEventListener('activate', (event) => {
+    console.log('SW v3 activating...');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
@@ -33,7 +35,7 @@ self.addEventListener('activate', (event) => {
                 })
             );
         }).then(() => {
-            // 모든 클라이언트 즉시 제어
+            console.log('SW v3 claiming clients');
             return self.clients.claim();
         })
     );
