@@ -42,8 +42,8 @@ const Login = ({ onSuccess, onSignUp }) => {
                     return;
                 }
 
-                // 이메일은 username@safety-pay.com 형태로 저장됨
-                userEmail = `${username}@safety-pay.com`;
+                // 이메일은 username@example.com 형태로 저장됨
+                userEmail = `${username}@example.com`;
                 userData = userRecord;
             }
 
