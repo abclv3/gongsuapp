@@ -86,13 +86,15 @@ export const signUp = async (email, password, userData) => {
 
         if (authError) return { data: null, error: authError };
 
-        // 2. 사용자 정보 저장
+
+        // 2. 사용자 정보 저장 (실제 이메일 포함)
         const { data, error } = await supabase
             .from('users')
             .insert([
                 {
                     auth_id: authData.user.id,
                     username: userData.username,
+                    email: userData.email, // 실제 이메일 저장
                     name: userData.name,
                     phone: userData.phone,
                     hire_date: userData.hireDate,

@@ -165,6 +165,7 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
             // Supabase 회원가입 시도
             const { data, error } = await signUp(authEmail, formData.password, {
                 username: formData.username,
+                email: formData.email, // 실제 이메일도 저장
                 name: formData.name,
                 phone: formData.phone,
                 hireDate: formData.hireDate,
