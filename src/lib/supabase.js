@@ -1,5 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
+// 환경 변수 디버그 (빌드 시 값 확인)
+console.log('🔍 Environment Check:');
+console.log('- VITE_SUPABASE_URL exists:', !!import.meta.env.VITE_SUPABASE_URL);
+console.log('- VITE_SUPABASE_ANON_KEY exists:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+
 // Supabase 설정
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
