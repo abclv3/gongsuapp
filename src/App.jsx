@@ -58,6 +58,7 @@ function App() {
 
             {currentView === 'main' && currentUser && (
                 <SalaryCalculator
+                    key={currentUser.id}
                     user={currentUser}
                     onLogout={handleLogout}
                 />
