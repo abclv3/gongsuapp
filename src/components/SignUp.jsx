@@ -168,30 +168,12 @@ const SignUp = ({ onSuccess, onBackToLogin }) => {
                 workSite: finalWorkSite,
             });
 
+
             if (error) {
-                // Supabase 실패 시 localStorage fallback
-                console.log('Supabase 회원가입 실패:', error.message);
-
-                // 기존 사용자 확인
-                const users = JSON.parse(localStorage.getItem('safety-pay-users') || '[]');
-                if (users.find(u => u.username === formData.username)) {
-                    setErrors({ username: '이미 존재하는 아이디입니다' });
-                    setIsSubmitting(false);
-                    return;
-                }
-
-                // localStorage에 저장
-                const newUser = {
-                    ...formData,
-                    workSite: finalWorkSite,
-                    createdAt: new Date().toISOString(),
-                    id: Date.now().toString(),
-                };
-                users.push(newUser);
-                localStorage.setItem('safety-pay-users', JSON.stringify(users));
-
-                alert(`${formData.name}님, 회원가입이 완료되었습니다!\n현장: ${finalWorkSite}\n(오프라인 모드)`);
-                onSuccess(newUser);
+                // Supabase 회원가입 실패
+                console.error('Supabase 회원가입 실패:', error.message);
+                setErrors({ username: `회원가입 실패: ${error.message}` });
+                setIsSubmitting(false);
                 return;
             }
 
