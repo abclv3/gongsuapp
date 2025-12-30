@@ -28,7 +28,7 @@ const Login = ({ onSuccess, onSignUp }) => {
             let userData = null;
 
             if (supabase && !username.includes('@')) {
-                // 아이디로 입력한 경우 - DB에서 이메일 조회
+                // 아이디로 입력한 경우 - DB에서 실제 이메일 조회
                 const { data: userRecord, error: lookupError } = await supabase
                     .from('users')
                     .select('*')
@@ -42,8 +42,8 @@ const Login = ({ onSuccess, onSignUp }) => {
                     return;
                 }
 
-                // 이메일은 username@example.com 형태로 저장됨
-                userEmail = `${username}@example.com`;
+                // DB에 저장된 실제 이메일로 인증
+                userEmail = userRecord.email;
                 userData = userRecord;
             }
 
